@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Splendor Online — Luxury Turn-Based Board Game</title>
+  
+  <!-- Renaissance Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
+
+  <!-- Core Stylesheet -->
+  <link rel="stylesheet" href="css/style.css?v=6.0" />
+
+  <!-- Three.js (Optional 3D Enhancement - gracefully falls back to 2D Canvas if offline) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
+
+  <!-- ES Module Application Entry -->
+  <script type="module" src="js/app.js?v=7.0"></script>
+
+
+</head>
+<body>
+
+  <!-- ========================================================================
+       TOP NAVIGATION BAR
+       ======================================================================== -->
+  <header class="top-header">
+    <div class="brand">
+      <span class="brand-icon">💎</span>
+      <h1 class="brand-title">SPLENDOR</h1>
+      <span id="room-badge" class="room-badge">SOLO VS AI</span>
+      <span id="mode-badge" class="mode-badge" title="Active Game Mode (Click for details)">👑 Classic</span>
+    </div>
+
+    <div class="game-status-banner">
+      <div id="turn-pill" class="turn-pill my-turn">
+        <span>Turn 1 (Round 1)</span>
+        <strong>You (Merchant)</strong>
+      </div>
+      <div id="turn-timer" class="turn-timer">⏱ 1:00</div>
+    </div>
+
+    <div class="header-actions">
+      <button id="btn-sound" class="icon-btn" title="Toggle Sound">🔊 Sound: ON</button>
+      <button id="btn-log" class="icon-btn" title="Move History Log">📜 Log</button>
+      <button id="btn-rules" class="icon-btn" title="Rulebook">📖 Rules</button>
+      <button id="btn-new-game" class="icon-btn" style="border-color:var(--border-gold); color:var(--text-gold);">⚔️ New Game</button>
+    </div>
+  </header>
+
+  <!-- ========================================================================
+       MAIN GAMEPLAY VIEWPORT
+       ======================================================================== -->
+  <main class="game-viewport">
+
+    <!-- Left & Center Gameplay Area -->
+    <div class="game-main-area">
+
+      <!-- Top Opponent Table (Opposite Side in 2-Player Game) -->
+      <div id="top-player-table" class="top-player-table hidden"></div>
+
+      <!-- Board Area: Nobles on Left, Card Matrix in Center, Gem Bank on Right -->
+      <div class="board-container">
+        
+        <!-- Super Powers Column (Left of Nobles, active in Super Powers mode) -->
+        <div id="powers-column" class="powers-column hidden">
+          <div class="section-label">⚡ Powers</div>
+          <div id="powers-container" class="powers-container">
+            <!-- Rendered by UI -->
+          </div>
+        </div>
+
+        <!-- Nobles Column -->
+        <div class="nobles-column">
+          <div class="section-label">⚜️ Nobles (+3)</div>
+          <div id="nobles-container">
+            <!-- Rendered by UI -->
+          </div>
+        </div>
+
+        <!-- 3-Tier Card Matrix -->
+        <div class="card-matrix">
+          <div class="section-label" style="text-align:left;">⚜️ Gem Market</div>
+          <div id="card-matrix">
+            <!-- Rendered by UI -->
+          </div>
+        </div>
+
+        <!-- Central 3D / 2D Token Bank -->
+        <section class="bank-section">
+          <div class="bank-header-row">
+            <div class="section-label" style="text-align:left; margin-bottom:0;">⚜️ Gem Coffer</div>
+            <span class="bank-rule-hint">Take 3 distinct or 2 same (stack ≥ 4)</span>
+          </div>
+
+          <!-- 3D / 2D Canvas Mount -->
+          <div id="gem-canvas-container" class="bank-canvas-container">
+            <!-- Canvas injected here -->
+          </div>
+
+          <!-- Staging & Confirm Controls -->
+          <div class="bank-controls">
+            <div id="staged-tokens-display" class="staged-tokens-display">
+              <!-- Staged tokens rendered by UI -->
+            </div>
+            <div class="bank-btn-row">
+              <button id="btn-confirm-tokens" class="action-btn" disabled>Take Tokens</button>
+              <button id="btn-clear-tokens" class="secondary-btn" disabled>Clear</button>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+    </div>
+
+    <!-- Right Sidebar: Opponents Overview -->
+    <aside class="opponents-sidebar">
+      <div class="section-label">Opponents</div>
+      <div id="opponents-container" style="display:flex; flex-direction:column; gap:10px;">
+        <!-- Rendered by UI -->
+      </div>
+      
+      <div style="margin-top:auto; padding-top:12px; border-top:1px solid rgba(255,255,255,0.1);">
+        <button id="btn-emotes" class="secondary-btn" style="width:100%;">💬 Emotes & Banter</button>
+        <div id="emotes-drawer" class="emotes-bar hidden" style="margin-top:8px;">
+          <button class="emote-pill" data-emote="Splendid!">⚜️ Splendid!</button>
+          <button class="emote-pill" data-emote="A shrewd trade!">🤝 Shrewd trade!</button>
+          <button class="emote-pill" data-emote="Alas!">🍷 Alas!</button>
+          <button class="emote-pill" data-emote="Curse your merchant eye!">⚔️ Curse your eye!</button>
+        </div>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- ========================================================================
+       ACTIVE PLAYER DASHBOARD (BOTTOM DOCK)
+       ======================================================================== -->
+  <footer class="player-dock">
+    
+    <!-- Left: Prestige points & Tokens held -->
+    <div class="dock-left">
+      <div class="prestige-badge">
+        <div style="display:flex; align-items:center; justify-content:center; gap:4px; margin-bottom:2px;">
+          <div id="player-dock-name" class="player-dock-name-btn" style="font-size:10px; color:#fbbf24; font-weight:800; letter-spacing:1px; text-transform:uppercase;" title="Click to rename your merchant">Player 1</div>
+          <button id="btn-rename-merchant" class="rename-icon-btn" title="Rename Merchant">✏️</button>
+        </div>
+        <span id="prestige-val" class="prestige-val">0</span>
+        <span id="player-dock-lbl" class="prestige-lbl">Prestige</span>
+      </div>
+
+      <div class="holdings-group">
+        <div class="holdings-label">
+          <span>Gem Holdings</span>
+          <span id="token-limit-badge" style="font-weight:bold;">0 / 10 Tokens</span>
+        </div>
+        <div id="player-gem-holdings" class="gem-holdings-rack">
+          <!-- Rendered by UI: 5 Gem Card Stacks + 1 Gold Joker Slot -->
+        </div>
+        <!-- Hidden containers for test compatibility -->
+        <div id="player-tokens-container" style="display:none;"></div>
+        <div id="player-bonuses-container" style="display:none;"></div>
+      </div>
+    </div>
+
+    <!-- Center: Reserved Hand Dock (Up to 3 cards) -->
+    <div class="dock-center">
+      <div class="holdings-label">
+        <span>Reserved Cards</span>
+        <span id="player-reserved-count" style="font-weight:bold; color:var(--text-muted);">0 / 3</span>
+      </div>
+      <div id="reserved-tray" class="reserved-tray">
+        <!-- Rendered by UI -->
+      </div>
+    </div>
+
+    <!-- Right: Nobles Taken / Royal Patronage -->
+    <div class="dock-right">
+      <div class="holdings-label" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+        <span>👑 Nobles Taken</span>
+        <span id="player-nobles-count" style="color:var(--text-gold); font-weight:800;">0</span>
+      </div>
+      <div id="player-nobles-tray" class="player-nobles-tray">
+        <!-- Rendered by UI: Mini noble portrait tiles (+3 PTS each) -->
+      </div>
+      <div id="player-powers-tray" class="claimed-powers-list" style="margin-top:4px;"></div>
+    </div>
+
+  </footer>
+
+  <!-- ========================================================================
+       MODALS
+       ======================================================================== -->
+
+  <!-- Lobby Setup Modal -->
+  <div id="lobby-modal" class="modal-backdrop hidden">
+    <div class="modal-dialog">
+      <h2 class="modal-title">Splendor Online</h2>
+      <p class="modal-subtitle">Renaissance Jewel Merchant Strategy</p>
+
+      <div class="modal-body">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <label style="font-size:13px; color:#e2e8f0;">Game Mode:</label>
+          <select id="lobby-mode-select" class="secondary-btn" style="background:#1e1b2b; color:#fff;">
+            <option value="solo">Solo vs AI Bots</option>
+            <option value="pass_and_play">Pass & Play (Local)</option>
+            <option value="online">Online Room (Share Link)</option>
+          </select>
+        </div>
+
+        <!-- Online Mode Options (Create vs Join) -->
+        <div id="lobby-online-options" style="display:none; flex-direction:column; gap:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label style="font-size:13px; color:#e2e8f0;">Online Action:</label>
+            <div style="display:flex; gap:6px;">
+              <button type="button" id="btn-tab-create-room" class="secondary-btn" style="font-size:12px; padding:4px 10px; background:var(--bg-gold); color:#000; font-weight:700;">Create Room</button>
+              <button type="button" id="btn-tab-join-room" class="secondary-btn" style="font-size:12px; padding:4px 10px; background:#1e1b2b; color:#cbd5e1;">Join with Code</button>
+            </div>
+          </div>
+          <div id="lobby-join-code-row" style="display:none; justify-content:space-between; align-items:center;">
+            <label style="font-size:13px; color:#e2e8f0; font-weight:600;">Room Code:</label>
+            <input type="text" id="lobby-room-code-input" class="modal-input" placeholder="e.g. ABC123" maxlength="8" style="text-transform:uppercase; font-family:monospace; font-weight:bold; width:130px; text-align:center; letter-spacing:2px;" />
+          </div>
+        </div>
+
+        <!-- User / Merchant Name Input Section -->
+        <div id="lobby-name-section" style="display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label id="lobby-name-label" style="font-size:13px; color:#e2e8f0; font-weight:600;">Your Name:</label>
+            <input type="text" id="lobby-player-name" class="modal-input" placeholder="e.g. Lorenzo, Rasika..." maxlength="20" />
+          </div>
+          <!-- Dynamic Extra Players for Pass & Play -->
+          <div id="lobby-extra-names" style="display:none; flex-direction:column; gap:8px;"></div>
+        </div>
+
+        <div id="lobby-players-count-row" style="display:flex; justify-content:space-between; align-items:center;">
+          <label style="font-size:13px; color:#e2e8f0;">Player Count:</label>
+          <select id="lobby-players-count" class="secondary-btn" style="background:#1e1b2b; color:#fff;">
+            <option value="2">2 Players (4 Gems per stack)</option>
+            <option value="3">3 Players (5 Gems per stack)</option>
+            <option value="4" selected>4 Players (7 Gems per stack)</option>
+          </select>
+        </div>
+
+        <div id="lobby-ai-diff-row" style="display:flex; justify-content:space-between; align-items:center;">
+          <label style="font-size:13px; color:#e2e8f0;">AI Difficulty:</label>
+          <select id="lobby-ai-diff-select" class="secondary-btn" style="background:#1e1b2b; color:#fff;">
+            <option value="apprentice">Apprentice (Easy: 1-ply greedy)</option>
+            <option value="merchant" selected>Merchant (Medium: Heuristic engine)</option>
+            <option value="master">Master Guildmaster (Hard: Tempo & denial)</option>
+            <option value="grandmaster">Grandmaster: Dinesh (Greedy Saboteur)</option>
+
+          </select>
+        </div>
+
+
+        <div id="lobby-game-mode-row" style="display:flex; flex-direction:column; gap:6px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label style="font-size:13px; color:#e2e8f0; font-weight:600;">Game Mode:</label>
+            <select id="lobby-game-mode-select" class="secondary-btn" style="background:#1e1b2b; color:#fff; min-width:185px;">
+              <option value="classic" selected>👑 Classic Splendor</option>
+              <option value="super_powers">⚡ Super Powers (7 Hidden/Unlocked)</option>
+              <option value="onyx_syndicate">🖤 Onyx Syndicate (10 Black Cards)</option>
+              <option value="tier_ladder">🪜 Guild Ladder (Tier Lock 6/6)</option>
+              <option value="color_supremacy">⭐ Color Monopoly (3 Badges)</option>
+              <option value="noble_court">⚜️ Noble Court (3 Nobles)</option>
+              <option value="rainbow_guild">🌈 Renaissance Prism (3 of Each)</option>
+            </select>
+          </div>
+          <div id="lobby-mode-description" style="font-size:11px; color:#94a3b8; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:6px; padding:6px 10px; line-height:1.4;">
+            Race to target prestige points (15-35 PTS). The timeless Renaissance competition.
+          </div>
+        </div>
+
+        <div id="lobby-super-powers-toggle-row" style="display:flex; justify-content:space-between; align-items:center; background:rgba(192,132,252,0.12); border:1px solid rgba(192,132,252,0.35); border-radius:6px; padding:8px 12px;">
+          <div>
+            <div style="font-size:13px; color:#f3e8ff; font-weight:700; display:flex; align-items:center; gap:6px;">
+              <span>⚡</span> <span>Enable Super Powers</span>
+            </div>
+            <div style="font-size:11px; color:#cbd5e1;">7 Arcane Powers unlocked at Round 6 for any mode</div>
+          </div>
+          <label style="position:relative; display:inline-block; width:46px; height:24px; cursor:pointer; margin:0;">
+            <input type="checkbox" id="lobby-toggle-super-powers" style="opacity:0; width:0; height:0;">
+            <span id="lobby-toggle-super-powers-slider" class="toggle-slider" style="position:absolute; inset:0; background:#334155; border-radius:24px; transition:0.25s; border:1px solid rgba(255,255,255,0.2);">
+              <span class="toggle-knob" style="position:absolute; height:18px; width:18px; left:2px; bottom:2px; background:#fff; border-radius:50%; transition:0.25s; box-shadow:0 1px 3px rgba(0,0,0,0.4);"></span>
+            </span>
+          </label>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <label style="font-size:13px; color:#e2e8f0;">Turn Timer:</label>
+          <select id="lobby-timer-select" class="secondary-btn" style="background:#1e1b2b; color:#fff;">
+            <option value="0">Casual (No Timer)</option>
+            <option value="30">Blitz (30 seconds)</option>
+            <option value="60" selected>Standard (60 seconds)</option>
+            <option value="120">Classical (120 seconds)</option>
+          </select>
+        </div>
+
+        <div id="lobby-target-points-row" style="display:flex; justify-content:space-between; align-items:center;">
+          <label style="font-size:13px; color:#e2e8f0;">Winning Points:</label>
+          <select id="lobby-target-points-select" class="secondary-btn" style="background:#1e1b2b; color:#fff;">
+            <option value="15" selected>15 Points (Standard)</option>
+            <option value="20">20 Points (Extended)</option>
+            <option value="25">25 Points (Grandmaster)</option>
+            <option value="30">30 Points (Epic Marathon)</option>
+            <option value="35">35 Points (Legendary)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="display:flex; gap:10px; width:100%;">
+        <button id="btn-resume-game" class="secondary-btn" style="display:none; flex:1; font-size:13px; padding:10px; background:#334155; color:#f8fafc; font-weight:700;">
+          ← Resume Game
+        </button>
+        <button id="btn-start-game" class="action-btn" style="flex:2; font-size:15px; padding:10px;">
+          Enter the Merchant Guild
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       ONLINE WAITING ROOM / INVITE MODAL
+       ======================================================================== -->
+  <div id="online-lobby-modal" class="modal-backdrop hidden">
+    <div class="modal-dialog" style="max-width:440px;">
+      <h2 class="modal-title" style="display:flex; align-items:center; justify-content:center; gap:8px;">
+        <span>🌐</span> <span id="online-modal-room-code">ROOM #______</span>
+      </h2>
+      <p class="modal-subtitle">Share this invite link with your friends to play together!</p>
+
+      <div class="modal-body" style="display:flex; flex-direction:column; gap:14px;">
+        <!-- Share Link Box -->
+        <div style="background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:8px 10px; display:flex; align-items:center; gap:8px;">
+          <input type="text" id="online-share-link" readonly style="background:transparent; border:none; color:#fbbf24; font-size:12px; font-family:monospace; flex:1; outline:none; text-overflow:ellipsis;" />
+          <button id="btn-copy-room-link" class="action-btn" style="padding:4px 10px; font-size:11px; white-space:nowrap;">📋 Copy Link</button>
+        </div>
+
+        <!-- Players In Room List -->
+        <div>
+          <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;">
+            Players Joined (<span id="online-player-count-badge">1 / 2</span>):
+          </div>
+          <div id="online-players-list" style="display:flex; flex-direction:column; gap:6px;">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- Waiting / Status Text -->
+        <div id="online-waiting-status" style="text-align:center; font-size:12px; color:#cbd5e1; font-style:italic;">
+          ⏳ Waiting for other players to join...
+        </div>
+      </div>
+
+      <div class="modal-footer" style="display:flex; gap:8px;">
+        <button id="btn-leave-online-room" class="secondary-btn" style="flex:1; padding:8px;">Leave Room</button>
+        <button id="btn-force-start-online" class="action-btn" style="flex:1; padding:8px; display:none;">Start Game Now</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rename Merchant Modal -->
+  <div id="rename-modal" class="modal-backdrop hidden">
+    <div class="modal-dialog" style="max-width:380px;">
+      <h2 class="modal-title">Edit Merchant Name</h2>
+      <p class="modal-subtitle">Bestow a noble name upon your merchant house</p>
+      <div class="modal-body">
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <label id="rename-modal-label" style="font-size:12px; color:var(--text-muted);">Merchant Name:</label>
+          <input type="text" id="rename-input" class="modal-input" style="width:100%; box-sizing:border-box;" maxlength="20" placeholder="Enter user name..." />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-cancel-rename" class="secondary-btn" style="padding:6px 14px;">Cancel</button>
+        <button id="btn-save-rename" class="action-btn" style="padding:6px 16px;">Save Name</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card Inspect Modal -->
+  <div id="card-modal" class="modal-backdrop hidden">
+    <div class="modal-dialog">
+      <h2 id="card-modal-title" class="modal-title">Development Card</h2>
+      <div id="card-modal-body" class="modal-body"></div>
+      <div id="card-modal-actions" class="modal-footer"></div>
+    </div>
+  </div>
+
+  <!-- Super Power Inspect Modal -->
+  <div id="power-inspect-modal" class="modal-backdrop hidden">
+    <div class="modal-dialog" style="max-width:440px;">
+      <h2 id="power-modal-title" class="modal-title">⚡ Super Power</h2>
+      <div id="power-modal-body" class="modal-body" style="display:flex; flex-direction:column; gap:12px;"></div>
+      <div class="modal-footer">
+        <button id="power-modal-close" class="action-btn" style="min-width:120px;">✦ Close ✦</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Super Power Obtained Celebration Modal -->
+  <div id="power-obtained-modal" class="modal-backdrop hidden" style="z-index: 1050;">
+    <div class="modal-dialog power-obtained-dialog" style="max-width: 440px; text-align: center; position: relative;">
+      <h2 id="power-obtained-title" class="modal-title" style="color: #fef08a; font-size: 22px; text-shadow: 0 0 16px rgba(251,191,36,0.85); letter-spacing: 1px;">
+        ⚡ SUPER POWER AWAKENED! ⚡
+      </h2>
+      <p id="power-obtained-subtitle" class="modal-subtitle" style="font-size: 13px; color: #cbd5e1; margin-top: 4px;"></p>
+      <div class="modal-body" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 0;">
+        <div id="power-obtained-card-wrapper" style="position: relative;">
+          <div class="power-sparkle-glow"></div>
+          <div id="power-obtained-card" class="power-card-celebration"></div>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content: center; margin-top: 6px;">
+        <button id="btn-claim-power-anim" class="action-btn" style="min-width: 220px; font-size: 14px; padding: 10px 22px; font-weight: bold; background: linear-gradient(135deg, #d97706, #fbbf24); box-shadow: 0 0 20px rgba(251,191,36,0.6);">
+          ⚡ Claim &amp; Fly to Dashboard ⚡
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Discard Excess Tokens Modal -->
+  <div id="discard-modal" class="modal-backdrop hidden">
+    <div class="modal-dialog">
+      <h2 class="modal-title" style="color:#ef4444;">Token Limit Exceeded (> 10)</h2>
+      <p class="modal-subtitle">
+        You hold too many gems. Please select <strong id="discard-remaining-count" style="color:#ef4444;">0</strong> more tokens to return to the bank.
+      </p>
+      <div id="discard-tokens-list" class="modal-body"></div>
+      <div class="modal-footer">
+        <button id="btn-confirm-discard" class="action-btn" disabled>Confirm Discard</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Noble Selection Modal -->
+  <div id="noble-modal" class="modal-backdrop hidden">
+    <div class="modal-dialog">
+      <h2 class="modal-title">Royal Patronage!</h2>
+      <p class="modal-subtitle">Multiple nobles wish to visit your guild. Choose which one to receive:</p>
+      <div id="noble-choice-list" class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Move Log Drawer -->
+  <div id="log-drawer" class="log-drawer">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h3 style="font-family:var(--font-serif); color:var(--text-gold);">Move History</h3>
+      <button id="btn-close-log" class="secondary-btn" style="padding:2px 8px;">✕</button>
+    </div>
+    <div id="log-list" class="log-list"></div>
+  </div>
+
+  <!-- Game Over Podium & Analytics Modal -->
+  <div id="game-over-modal" class="modal-backdrop hidden">
+    <div class="modal-dialog" style="max-width:540px;">
+      <h2 class="modal-title">⚜️ Victory Celebration ⚜️</h2>
+      <p id="game-over-subtitle" class="modal-subtitle">The Merchant Guild has reached 15 prestige points!</p>
+      
+      <div id="podium-list" class="modal-body" style="gap:8px;"></div>
+
+      <div style="margin-top:8px; background:rgba(0,0,0,0.3); padding:8px; border-radius:8px;">
+        <canvas id="analytics-canvas" style="width:100%; height:140px;"></canvas>
+      </div>
+
+      <div class="modal-footer">
+        <button id="btn-play-again" class="action-btn" style="width:100%;">Play Again</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rulebook Modal -->
+  <div id="rules-modal" class="modal-backdrop hidden">
+    <div class="modal-dialog" style="max-width:600px; max-height:80vh; overflow-y:auto;">
+      <h2 class="modal-title">Splendor — Rules & Mechanics</h2>
+      <div class="modal-body" style="font-size:13px; line-height:1.6; color:#cbd5e1;">
+        <h4 style="color:var(--text-gold); margin-top:6px;">Goal</h4>
+        <p>Be the first merchant to reach the target <strong>Prestige Points</strong> (15 Standard, 20 Extended, 25 Grandmaster, 30 Epic, or 35 Legendary). The round finishes so all players have had equal turns.</p>
+
+        <h4 style="color:var(--text-gold); margin-top:8px;">Turn Actions (Choose Exactly 1):</h4>
+        <ul style="padding-left:20px;">
+          <li><strong>Take 3 Distinct Gem Tokens</strong> of different colors (excluding Gold).</li>
+          <li><strong>Take 2 Gem Tokens of the same color</strong> (allowed ONLY if that stack has at least 4 tokens).</li>
+          <li><strong>Reserve 1 Development Card (+1 Gold Joker)</strong> from the board or top of a tier deck. Max 3 reserved cards.</li>
+          <li><strong>Purchase 1 Card</strong> from the board or your reserved hand. Permanent bonuses reduce the token cost. Gold wildcards substitute for any missing tokens.</li>
+        </ul>
+
+        <h4 style="color:var(--text-gold); margin-top:8px;">Token Limit:</h4>
+        <p>You may hold at most <strong>10 tokens</strong> at the end of your turn. If you have more, you must discard the excess.</p>
+
+        <h4 style="color:var(--text-gold); margin-top:8px;">Nobles:</h4>
+        <p>Nobles automatically visit you (+3 points) when your permanent card bonuses satisfy their requirements. If multiple qualify on the same turn, you choose one.</p>
+
+        <h4 style="color:var(--text-gold); margin-top:12px;">⚔️ Dynamic Game Modes:</h4>
+        <ul style="padding-left:20px;">
+          <li><strong>👑 Classic Splendor:</strong> Race to target prestige points (15-35 PTS). Standard Renaissance rules.</li>
+          <li><strong>⚡ Super Powers:</strong> 5 secret arcane powers drawn each match, sealed for the first 5 rounds. Starting in Round 6, the seals shatter and players unlock game-changing passives and game-breaking instant bursts through in-game feats!</li>
+          <li><strong>🖤 Shadow Syndicate:</strong> The first merchant to collect <strong>10 Onyx (black) development cards</strong> wins immediately!</li>
+          <li><strong>🪜 Guild Ladder:</strong> True craftsmanship! You must own at least <strong>6 Tier 1 cards to buy Tier 2 cards</strong>, and at least <strong>6 Tier 2 cards to buy Tier 3 cards</strong>.</li>
+          <li><strong>⭐ Color Monopoly:</strong> First merchant to buy <strong>5 cards in a color earns 1 Monopoly Trophy</strong>. The first player to earn <strong>3 Trophies</strong> wins!</li>
+          <li><strong>⚜️ Noble Court:</strong> Nobles hold royal sway. The first merchant to attract <strong>3 Noble Patrons</strong> wins the crown!</li>
+          <li><strong>🌈 Renaissance Prism:</strong> Prove universal mastery by acquiring at least <strong>3 development cards in each of the 5 colors</strong> (15 cards total) to win!</li>
+        </ul>
+
+        <h4 style="color:var(--text-gold); margin-top:8px;">Tiebreaker Hierarchy:</h4>
+        <ol style="padding-left:20px;">
+          <li>Most Prestige Points</li>
+          <li>Fewest purchased development cards</li>
+          <li>Highest total tokens remaining</li>
+        </ol>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-close-rules" class="action-btn" style="width:100%;">Understood</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game-styled Alert Modal (replaces native alert()) -->
+  <div id="alert-modal" class="modal-backdrop hidden">
+    <div class="modal-dialog" style="max-width:420px;">
+      <h2 id="alert-modal-title" class="modal-title">Notice</h2>
+      <div id="alert-modal-body" class="modal-body" style="font-size:14px; line-height:1.6; color:#cbd5e1; text-align:center;"></div>
+      <div class="modal-footer">
+        <button id="alert-modal-ok" class="action-btn" style="min-width:120px;">✦ Understood ✦</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game-styled Confirm Modal (replaces native confirm()) -->
+  <div id="confirm-modal" class="modal-backdrop hidden">
+    <div class="modal-dialog" style="max-width:460px;">
+      <h2 id="confirm-modal-title" class="modal-title">Confirm Action</h2>
+      <div id="confirm-modal-body" class="modal-body" style="font-size:14px; line-height:1.6; color:#cbd5e1; text-align:center;"></div>
+      <div class="modal-footer" style="gap:12px;">
+        <button id="confirm-modal-cancel" class="secondary-btn" style="min-width:110px;">✕ Cancel</button>
+        <button id="confirm-modal-ok" class="action-btn" style="min-width:110px;">✦ Confirm ✦</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Real-time Floating Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+</body>
+</html>
+
