@@ -110,6 +110,17 @@ export class SplendorUI {
     this.powerObtainedCard = document.getElementById('power-obtained-card');
     this.btnClaimPowerAnim = document.getElementById('btn-claim-power-anim');
 
+    // Arcane Draft Modal elements (Every 4 rounds)
+    this.powerDraftModal = document.getElementById('power-draft-modal');
+    this.powerDraftTitle = document.getElementById('power-draft-title');
+    this.powerDraftSubtitle = document.getElementById('power-draft-subtitle');
+    this.draftChooserName = document.getElementById('draft-chooser-name');
+    this.powerDraftCardsContainer = document.getElementById('power-draft-cards-container');
+    this.draftCard0 = document.getElementById('draft-card-0');
+    this.draftCard1 = document.getElementById('draft-card-1');
+    this.btnConfirmDraftPick = document.getElementById('btn-confirm-draft-pick');
+    this.selectedDraftPowerId = null;
+
     // Emotes
     this.emotesDrawer = document.getElementById('emotes-drawer');
     this.btnEmotes = document.getElementById('btn-emotes');
@@ -182,6 +193,15 @@ export class SplendorUI {
       this.claimAndFlyPower();
     });
 
+    // Arcane Draft Confirm Selection
+    this.btnConfirmDraftPick?.addEventListener('click', () => {
+      if (!this.selectedDraftPowerId) return;
+      const picked = this.selectedDraftPowerId;
+      this.selectedDraftPowerId = null;
+      this.powerDraftModal?.classList.add('hidden');
+      this.callbacks.onChooseDraftPower?.(picked);
+    });
+
     // Close Modals on backdrop click
     [this.cardModal, this.rulesModal, this.powerInspectModal, this.powerObtainedModal].forEach(modal => {
       modal?.addEventListener('click', (e) => {
@@ -208,6 +228,7 @@ export class SplendorUI {
       this.pendingPowerCelebrations = [];
       this.processedPowerEvents = new Set();
       this.isCelebratingPower = false;
+      this.selectedDraftPowerId = null;
       if (this.powerCelebrationTimer) {
         clearInterval(this.powerCelebrationTimer);
         this.powerCelebrationTimer = null;
@@ -267,6 +288,9 @@ export class SplendorUI {
     }
     if (mode === 'super_powers') {
       const claimedCount = (player.powersClaimed || []).length;
+      if (state.powersRule === 'draft_every_4_rounds') {
+        return `<div class="mode-indicator-pill ${claimedCount > 0 ? 'highlight' : ''}" title="Arcane Draft: ${claimedCount} Powers Claimed">⚡ ${claimedCount} Powers Active</div>`;
+      }
       if (!state.powersRevealed) {
         return `<div class="mode-indicator-pill" title="Super Powers: Sealed for first 5 rounds, unlocks Rd 6">🔒 Sealed (Rd ${state.roundIndex}/5)</div>`;
       }
@@ -274,7 +298,7 @@ export class SplendorUI {
     }
     if (state.superPowersEnabled) {
       const claimedCount = (player.powersClaimed || []).length;
-      if (state.powersRevealed && claimedCount > 0) {
+      if (claimedCount > 0) {
         return `<div class="mode-indicator-pill highlight" title="Super Powers: ${claimedCount} Powers Claimed">⚡ ${claimedCount} Powers</div>`;
       }
     }
@@ -649,7 +673,7 @@ export class SplendorUI {
   renderSuperPowers(state) {
     if (!this.powersColumn || !this.powersContainer) return;
 
-    if (!state.superPowersEnabled) {
+    if (!state.superPowersEnabled || state.powersRule !== 'feats') {
       this.powersColumn.classList.add('hidden');
       return;
     }
@@ -2192,6 +2216,91 @@ export class SplendorUI {
     } else {
       this.nobleModal?.classList.add('hidden');
     }
+
+    // 3. Pending Arcane Draft Modal (Every 4 Rounds)
+    if (state.pendingPowerDraft) {
+      this.showPowerDraftModal(state);
+    } else {
+      this.powerDraftModal?.classList.add('hidden');
+    }
+  }
+
+  showPowerDraftModal(state) {
+    if (!this.powerDraftModal || !state.pendingPowerDraft) return;
+    const draft = state.pendingPowerDraft;
+    const chooser = state.players[draft.choosingPlayerIndex];
+    const otherPlayer = state.players[draft.otherPlayerIndex];
+    if (!chooser || !otherPlayer) return;
+
+    const isChooserLocal = (this.gameMode === 'pass_and_play')
+      ? (!chooser.isAi)
+      : (draft.choosingPlayerId === this.localPlayerId);
+
+    if (this.powerDraftTitle) {
+      this.powerDraftTitle.innerHTML = `⚔️ ARCANE DRAFT — ROUND ${draft.round} (${draft.tierName.toUpperCase()}) ⚔️`;
+    }
+
+    if (this.powerDraftSubtitle) {
+      if (isChooserLocal) {
+        this.powerDraftSubtitle.innerHTML = `<strong style="color: #38bdf8;">${chooser.name}</strong>'s Choice: Pick 1 power for your arsenal. The other goes to <strong style="color: #fcd34d;">${otherPlayer.name}</strong>!`;
+      } else {
+        this.powerDraftSubtitle.innerHTML = `<strong style="color: #f59e0b;">${chooser.name}</strong> (AI) is evaluating arcane powers...`;
+      }
+    }
+
+    const cardElements = [this.draftCard0, this.draftCard1];
+    draft.cards.forEach((powerId, idx) => {
+      const el = cardElements[idx];
+      if (!el) return;
+      const def = POWERS_DATA[powerId];
+      if (!def) return;
+
+      const isSelected = this.selectedDraftPowerId === powerId;
+      const isOther = this.selectedDraftPowerId && this.selectedDraftPowerId !== powerId;
+
+      el.className = `draft-card-choice tier-${def.tier || 'common'}`;
+      if (isSelected) el.classList.add('selected-for-draft');
+      if (isOther) el.classList.add('draft-card-other-pick');
+      if (!isChooserLocal) el.classList.add('disabled');
+
+      const targetBadge = def.target === 'opponent'
+        ? `<span class="draft-card-badge badge-curse">⚡ RIVAL CURSE</span>`
+        : `<span class="draft-card-badge badge-boon">✨ BENEFICIAL BOON</span>`;
+
+      const typeBadge = `<span class="draft-card-badge badge-passive">${def.type.toUpperCase()}</span>`;
+
+      el.innerHTML = `
+        <div class="draft-card-top">
+          <span style="color:${def.colorHex}; font-weight:800; font-size:11px;">✦ ${def.tierName.toUpperCase()}</span>
+          ${typeBadge}
+        </div>
+        <div class="draft-card-icon">${def.icon}</div>
+        <div class="draft-card-title">${def.name}</div>
+        <div>${targetBadge}</div>
+        <div class="draft-card-desc">${def.desc}</div>
+      `;
+
+      el.onclick = () => {
+        if (!isChooserLocal) return;
+        this.selectedDraftPowerId = powerId;
+        soundEngine.playCardSnap();
+        this.showPowerDraftModal(this.state);
+      };
+    });
+
+    if (this.btnConfirmDraftPick) {
+      if (isChooserLocal) {
+        this.btnConfirmDraftPick.disabled = !this.selectedDraftPowerId;
+        this.btnConfirmDraftPick.innerHTML = this.selectedDraftPowerId
+          ? `✦ Claim ${POWERS_DATA[this.selectedDraftPowerId]?.name || 'Power'} ✦`
+          : 'Select a Power to Claim';
+      } else {
+        this.btnConfirmDraftPick.disabled = true;
+        this.btnConfirmDraftPick.innerText = `⏳ ${chooser.name} is choosing...`;
+      }
+    }
+
+    this.powerDraftModal.classList.remove('hidden');
   }
 
   showDiscardModal(state, excessCount) {

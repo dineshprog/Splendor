@@ -16,6 +16,9 @@ import {
   executePurchaseCard,
   executeDiscardTokens,
   executeChooseNoble,
+  executeChooseDraftPower,
+  checkAndTriggerPowerDraft,
+  DRAFT_ROUNDS_TIER,
   executePassTurn,
   canAffordCard,
   canPlayerBuyCard,
@@ -29,7 +32,7 @@ import {
 } from '../js/engine.js';
 import { POWERS_DATA, drawMatchSuperPowers } from '../js/powers-data.js';
 import { CARDS_BY_ID, NOBLES_BY_ID, GEM_COLORS, ALL_TOKENS } from '../js/cards-data.js';
-import { computeAiMove, computeAiDiscard } from '../js/ai.js';
+import { computeAiMove, computeAiDiscard, computeAiDraftChoice } from '../js/ai.js';
 
 function assert(condition, message) {
   if (!condition) {
@@ -710,7 +713,120 @@ for (const ev of simState.unlockedPowerEvents) {
 print(`  ✓ Match completed in ${turnsCount} turns (${simState.roundIndex} rounds).`);
 print(`  ✓ Winner: ${simState.winner.name} (${simState.winner.points} pts, ${simState.winner.cardsCount} cards).`);
 print(`  ✓ Super Powers claimed during match: ${totalPowersClaimed}/7.`);
-print(`  ✓ Super Power unlock event stream verified with ${simState.unlockedPowerEvents.length} sequential celebration events.`);
+print(`  ✓ Super Power unlock event stream verified with ${simState.unlockedPowerEvents.length} sequential celebration events.\n`);
+
+// -----------------------------------------------------------------
+// TEST 8: ARCANE DRAFT MODE (EVERY 4 ROUNDS) VERIFICATION
+// -----------------------------------------------------------------
+print('TEST 8: Verifying Arcane Draft Mode (Every 4 Rounds Schedule & Alternation)...');
+
+const draftState = createGameState({
+  playerNames: ['Lorenzo', 'Dinesh'],
+  aiConfigs: [null, null],
+  powersRule: 'draft_every_4_rounds'
+});
+
+assert(draftState.superPowersEnabled === true, 'superPowersEnabled must be true for draft_every_4_rounds');
+assert(draftState.powersRule === 'draft_every_4_rounds', 'powersRule must be draft_every_4_rounds');
+assert(Array.isArray(draftState.availablePowers) && draftState.availablePowers.length === 0, 'No static feat board in draft mode');
+assert(draftState.pendingPowerDraft === null, 'No draft pending at start of match');
+
+// Helper to advance round
+function advanceToRound(st, targetRound) {
+  while (st.roundIndex < targetRound && st.status === 'in_progress') {
+    const actIdx = st.activePlayerIndex;
+    executePassTurn(st, actIdx);
+  }
+}
+
+// 1. Advance to Round 4: Common Boon, Player 0 (Lorenzo) Chooses
+advanceToRound(draftState, 4);
+assert(draftState.roundIndex === 4, `Expected Round 4, got ${draftState.roundIndex}`);
+assert(draftState.pendingPowerDraft !== null, 'pendingPowerDraft must be active at Round 4');
+assert(draftState.pendingPowerDraft.tier === 'common', `Expected common tier, got ${draftState.pendingPowerDraft.tier}`);
+assert(draftState.pendingPowerDraft.choosingPlayerIndex === 0, `Expected Lorenzo (P0) to choose at Round 4, got ${draftState.pendingPowerDraft.choosingPlayerIndex}`);
+assert(draftState.pendingPowerDraft.cards.length === 2, 'Must present exactly 2 cards');
+
+// Verify draft blocks normal player moves
+let blockedMoveCaught = false;
+try {
+  executePassTurn(draftState, 0);
+} catch (e) {
+  blockedMoveCaught = true;
+}
+assert(blockedMoveCaught, 'Normal moves must be blocked while pendingPowerDraft is active');
+
+// Test AI draft selection on the two cards
+const aiPick = computeAiDraftChoice(draftState, 0, draftState.pendingPowerDraft.cards);
+assert(draftState.pendingPowerDraft.cards.includes(aiPick), `AI pick ${aiPick} must be one of the offered cards`);
+
+// Lorenzo chooses card 0
+const r4Cards = draftState.pendingPowerDraft.cards.slice();
+const chosenP0_r4 = r4Cards[0];
+const otherP1_r4 = r4Cards[1];
+executeChooseDraftPower(draftState, 0, chosenP0_r4);
+assert(draftState.pendingPowerDraft === null, 'pendingPowerDraft must be cleared after draft resolution');
+assert(draftState.players[0].powersClaimed.includes(chosenP0_r4), 'Player 0 must have received chosen power');
+assert(draftState.players[1].powersClaimed.includes(otherP1_r4), 'Player 1 must have received other power');
+print('    ✓ Round 4: Common draft completed (Lorenzo chose, Dinesh received remaining)');
+
+// 2. Advance to Round 8: Common Boon, Player 1 (Dinesh) Chooses
+advanceToRound(draftState, 8);
+assert(draftState.roundIndex === 8, `Expected Round 8, got ${draftState.roundIndex}`);
+assert(draftState.pendingPowerDraft !== null, 'pendingPowerDraft must be active at Round 8');
+assert(draftState.pendingPowerDraft.tier === 'common', `Expected common tier at Round 8, got ${draftState.pendingPowerDraft.tier}`);
+assert(draftState.pendingPowerDraft.choosingPlayerIndex === 1, `Expected Dinesh (P1) to choose at Round 8, got ${draftState.pendingPowerDraft.choosingPlayerIndex}`);
+
+const r8Cards = draftState.pendingPowerDraft.cards.slice();
+const chosenP1_r8 = r8Cards[1];
+const otherP0_r8 = r8Cards[0];
+executeChooseDraftPower(draftState, 1, chosenP1_r8);
+assert(draftState.players[1].powersClaimed.includes(chosenP1_r8), 'Player 1 must have received chosen power');
+assert(draftState.players[0].powersClaimed.includes(otherP0_r8), 'Player 0 must have received other power');
+print('    ✓ Round 8: Common draft completed (Dinesh chose, Lorenzo received remaining)');
+
+// 3. Advance to Round 12: Rare Relic, Player 0 Chooses
+advanceToRound(draftState, 12);
+assert(draftState.roundIndex === 12, `Expected Round 12, got ${draftState.roundIndex}`);
+assert(draftState.pendingPowerDraft !== null, 'pendingPowerDraft must be active at Round 12');
+assert(draftState.pendingPowerDraft.tier === 'rare', `Expected rare tier at Round 12, got ${draftState.pendingPowerDraft.tier}`);
+assert(draftState.pendingPowerDraft.choosingPlayerIndex === 0, `Expected Lorenzo (P0) to choose at Round 12, got ${draftState.pendingPowerDraft.choosingPlayerIndex}`);
+executeChooseDraftPower(draftState, 0, draftState.pendingPowerDraft.cards[0]);
+print('    ✓ Round 12: Rare draft completed (Lorenzo chose)');
+
+// 4. Advance to Round 16: Rare Relic, Player 1 Chooses
+advanceToRound(draftState, 16);
+assert(draftState.roundIndex === 16, `Expected Round 16, got ${draftState.roundIndex}`);
+assert(draftState.pendingPowerDraft !== null, 'pendingPowerDraft must be active at Round 16');
+assert(draftState.pendingPowerDraft.tier === 'rare', `Expected rare tier at Round 16, got ${draftState.pendingPowerDraft.tier}`);
+assert(draftState.pendingPowerDraft.choosingPlayerIndex === 1, `Expected Dinesh (P1) to choose at Round 16, got ${draftState.pendingPowerDraft.choosingPlayerIndex}`);
+executeChooseDraftPower(draftState, 1, draftState.pendingPowerDraft.cards[0]);
+print('    ✓ Round 16: Rare draft completed (Dinesh chose)');
+
+// 5. Advance to Round 20: Mythic Wonder, Player 0 Chooses
+advanceToRound(draftState, 20);
+assert(draftState.roundIndex === 20, `Expected Round 20, got ${draftState.roundIndex}`);
+assert(draftState.pendingPowerDraft !== null, 'pendingPowerDraft must be active at Round 20');
+assert(draftState.pendingPowerDraft.tier === 'mythic', `Expected mythic tier at Round 20, got ${draftState.pendingPowerDraft.tier}`);
+assert(draftState.pendingPowerDraft.choosingPlayerIndex === 0, `Expected Lorenzo (P0) to choose at Round 20, got ${draftState.pendingPowerDraft.choosingPlayerIndex}`);
+executeChooseDraftPower(draftState, 0, draftState.pendingPowerDraft.cards[0]);
+print('    ✓ Round 20: Mythic draft completed (Lorenzo chose)');
+
+// 6. Advance to Round 24: Mythic Wonder, Player 1 Chooses
+advanceToRound(draftState, 24);
+assert(draftState.roundIndex === 24, `Expected Round 24, got ${draftState.roundIndex}`);
+assert(draftState.pendingPowerDraft !== null, 'pendingPowerDraft must be active at Round 24');
+assert(draftState.pendingPowerDraft.tier === 'mythic', `Expected mythic tier at Round 24, got ${draftState.pendingPowerDraft.tier}`);
+assert(draftState.pendingPowerDraft.choosingPlayerIndex === 1, `Expected Dinesh (P1) to choose at Round 24, got ${draftState.pendingPowerDraft.choosingPlayerIndex}`);
+executeChooseDraftPower(draftState, 1, draftState.pendingPowerDraft.cards[0]);
+print('    ✓ Round 24: Mythic draft completed (Dinesh chose)');
+
+// 7. Advance to Round 28: Powers drafts MUST STOP!
+advanceToRound(draftState, 28);
+assert(draftState.roundIndex === 28, `Expected Round 28, got ${draftState.roundIndex}`);
+assert(draftState.pendingPowerDraft === null, 'Powers draft must STOP after Round 24 (no draft at Round 28)');
+print('    ✓ Round 28+: Powers draft confirmed stopped completely after Round 24.');
+print('  ✓ Full Arcane Draft schedule (Rd 4/8 Common, 12/16 Rare, 20/24 Mythic, Stop >24) verified successfully!\n');
 
 print('\n===============================================================');
 print('   ALL SUPER POWERS TESTS PASSED SUCCESSFULLY! (EXIT CODE 0) ');

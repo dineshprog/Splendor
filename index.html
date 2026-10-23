@@ -275,19 +275,18 @@
           </div>
         </div>
 
-        <div id="lobby-super-powers-toggle-row" style="display:flex; justify-content:space-between; align-items:center; background:rgba(192,132,252,0.12); border:1px solid rgba(192,132,252,0.35); border-radius:6px; padding:8px 12px;">
-          <div>
-            <div style="font-size:13px; color:#f3e8ff; font-weight:700; display:flex; align-items:center; gap:6px;">
-              <span>⚡</span> <span>Enable Super Powers</span>
-            </div>
-            <div style="font-size:11px; color:#cbd5e1;">7 Arcane Powers unlocked at Round 6 for any mode</div>
+        <div id="lobby-powers-rule-row" style="display:flex; flex-direction:column; gap:6px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label style="font-size:13px; color:#e2e8f0; font-weight:600;">⚡ Super Powers Rule:</label>
+            <select id="lobby-powers-rule-select" class="secondary-btn" style="background:#1e1b2b; color:#fff; min-width:215px;">
+              <option value="none">🚫 No Powers</option>
+              <option value="nobles">📜 Claimed Like Nobles (Feats at Round 6)</option>
+              <option value="draft_every_4_rounds" selected>⚔️ Draft Every 4 Rounds (Pick 1, Give 1)</option>
+            </select>
           </div>
-          <label style="position:relative; display:inline-block; width:46px; height:24px; cursor:pointer; margin:0;">
-            <input type="checkbox" id="lobby-toggle-super-powers" style="opacity:0; width:0; height:0;">
-            <span id="lobby-toggle-super-powers-slider" class="toggle-slider" style="position:absolute; inset:0; background:#334155; border-radius:24px; transition:0.25s; border:1px solid rgba(255,255,255,0.2);">
-              <span class="toggle-knob" style="position:absolute; height:18px; width:18px; left:2px; bottom:2px; background:#fff; border-radius:50%; transition:0.25s; box-shadow:0 1px 3px rgba(0,0,0,0.4);"></span>
-            </span>
-          </label>
+          <div id="lobby-powers-rule-desc" style="font-size:11px; color:#c084fc; background:rgba(192,132,252,0.08); border:1px solid rgba(192,132,252,0.25); border-radius:6px; padding:6px 10px; line-height:1.4;">
+            Every 4 rounds, 2 power cards appear on screen. The chooser takes one, and the rival gets the other! Stops after Round 24.
+          </div>
         </div>
 
         <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -417,6 +416,30 @@
       <div class="modal-footer" style="justify-content: center; margin-top: 6px;">
         <button id="btn-claim-power-anim" class="action-btn" style="min-width: 220px; font-size: 14px; padding: 10px 22px; font-weight: bold; background: linear-gradient(135deg, #d97706, #fbbf24); box-shadow: 0 0 20px rgba(251,191,36,0.6);">
           ⚡ Claim &amp; Fly to Dashboard ⚡
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Arcane Draft Modal (Every 4 Rounds) -->
+  <div id="power-draft-modal" class="modal-backdrop hidden" style="z-index: 1060;">
+    <div class="modal-dialog power-draft-dialog" style="max-width: 620px; text-align: center;">
+      <h2 id="power-draft-title" class="modal-title" style="color: #fef08a; font-size: 21px; text-shadow: 0 0 16px rgba(251,191,36,0.85); letter-spacing: 1px;">
+        ⚔️ ARCANE DRAFT — ROUND 4 ⚔️
+      </h2>
+      <p id="power-draft-subtitle" class="modal-subtitle" style="font-size: 13px; color: #cbd5e1; margin-top: 4px;">
+        <strong id="draft-chooser-name" style="color: #38bdf8;">Lorenzo</strong>'s Choice: Pick 1 power for yourself. The other goes to your opponent!
+      </p>
+
+      <!-- Two Draft Cards Side by Side -->
+      <div id="power-draft-cards-container" style="display: flex; gap: 20px; justify-content: center; align-items: stretch; margin: 16px 0; flex-wrap: wrap;">
+        <div id="draft-card-0" class="draft-card-choice" data-card-idx="0"></div>
+        <div id="draft-card-1" class="draft-card-choice" data-card-idx="1"></div>
+      </div>
+
+      <div class="modal-footer" style="justify-content: center; margin-top: 6px;">
+        <button id="btn-confirm-draft-pick" class="action-btn" style="min-width: 240px; font-size: 14px; padding: 10px 22px; font-weight: bold; background: linear-gradient(135deg, #7c3aed, #c084fc); box-shadow: 0 0 20px rgba(192,132,252,0.5);" disabled>
+          ✦ Confirm Draft Selection ✦
         </button>
       </div>
     </div>

@@ -1374,3 +1374,60 @@ function shuffleArray(arr) {
   }
   return copy;
 }
+
+/**
+ * AI Valuation for Arcane Draft Mode (Every 4 Rounds)
+ * Evaluates the 2 offered cards and picks the most strategic power
+ */
+export function computeAiDraftChoice(state, aiPlayerIndex, cards) {
+  if (!cards || cards.length === 0) return null;
+  if (cards.length === 1) return cards[0];
+
+  const player = state.players[aiPlayerIndex];
+  const opponents = state.players.filter((_, idx) => idx !== aiPlayerIndex);
+  const leadingOpp = opponents.slice().sort((a, b) => b.prestigePoints - a.prestigePoints)[0];
+
+  const countTokens = tokens => Object.values(tokens || {}).reduce((s, n) => s + (n || 0), 0);
+
+  const scoreCard = (powerId) => {
+    let score = 50 + (Math.random() * 8);
+    switch (powerId) {
+      // High-priority Mythics
+      case 'chronos_hourglass': score += 120; break;
+      case 'bankrupting_curse': score += (leadingOpp && countTokens(leadingOpp.tokens) >= 5 ? 110 : 80); break;
+      case 'grand_inquisitor': score += (leadingOpp && leadingOpp.prestigePoints >= 5 ? 100 : 70); break;
+      case 'royal_usurpation': score += (opponents.some(o => o.noblesAcquired.length > 0) ? 95 : 60); break;
+      case 'philosophers_magnum_opus': score += 90; break;
+      case 'celestial_alignment': score += 85; break;
+      case 'guildmaster_sovereignty': score += 85; break;
+      case 'market_cataclysm': score += 80; break;
+
+      // High-priority Rares (Curses & Utility)
+      case 'sovereign_sanction': score += 70; break;
+      case 'vault_lockdown': score += 70; break;
+      case 'guild_embargo': score += 65; break;
+      case 'black_market_master': score += 65; break;
+      case 'coinage_mandate': score += 60; break;
+      case 'imperial_tithe': score += 60; break;
+      case 'espionage_heist': score += (opponents.some(o => o.cardsReserved.length > 0) ? 65 : 40); break;
+      case 'market_freeze': score += 55; break;
+
+      // Common Boons
+      case 'prismatic_harmony': score += 50; break;
+      case 'silk_road_caravan': score += 45; break;
+      case 'endless_vault': score += (countTokens(player.tokens) >= 8 ? 50 : 35); break;
+      case 'midas_crucible': score += 40; break;
+      case 'noble_envoy': score += (state.nobles.length > 0 ? 45 : 20); break;
+      case 'shadow_siphon': score += 40; break;
+      case 'smugglers_warehouse': score += 35; break;
+      case 'merchants_resurgence': score += (countTokens(player.tokens) <= 3 ? 45 : 30); break;
+      default: score += 40;
+    }
+    return score;
+  };
+
+  const score0 = scoreCard(cards[0]);
+  const score1 = scoreCard(cards[1]);
+
+  return score0 >= score1 ? cards[0] : cards[1];
+}

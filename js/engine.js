@@ -217,15 +217,26 @@ export function createGameState(options = {}) {
     };
   });
 
-  const superPowersEnabled = (options.enableSuperPowers !== undefined)
-    ? !!options.enableSuperPowers
-    : (resolvedGameMode === 'super_powers');
+  let powersRule = options.powersRule;
+  if (!powersRule) {
+    if (options.enableSuperPowers === true || resolvedGameMode === 'super_powers') {
+      powersRule = 'feats';
+    } else {
+      powersRule = 'none';
+    }
+  } else if (powersRule === 'nobles') {
+    powersRule = 'feats';
+  }
+  const superPowersEnabled = powersRule !== 'none';
 
   const modeBadge = GAME_MODES[resolvedGameMode].badge;
   return {
     gameId: `game_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
     gameMode: resolvedGameMode,
     superPowersEnabled,
+    powersRule,
+    pendingPowerDraft: null,
+    draftsCompletedRounds: [],
     marketFreezeRounds: 0,
     colorTrophies: { diamond: null, sapphire: null, emerald: null, ruby: null, onyx: null },
     status: 'in_progress', // 'in_progress' | 'final_round' | 'completed'
@@ -238,7 +249,7 @@ export function createGameState(options = {}) {
     decks,
     tableCards,
     nobles: shuffledNobles,
-    availablePowers: superPowersEnabled ? drawMatchSuperPowers(7) : [],
+    availablePowers: (superPowersEnabled && powersRule === 'feats') ? drawMatchSuperPowers(7) : [],
     powersRevealed: false,
     extraTurnsRemaining: 0,
     extraTurnsPlayerId: null,
@@ -415,7 +426,7 @@ export function validateTakeDistinctTokens(state, playerIndex, colors) {
   if (state.activePlayerIndex !== playerIndex) {
     return { valid: false, error: 'Not active player turn' };
   }
-  if (state.pendingDiscard || state.pendingNobleChoice) {
+  if (state.pendingDiscard || state.pendingNobleChoice || state.pendingPowerDraft) {
     return { valid: false, error: 'Must resolve pending action first' };
   }
 
@@ -525,7 +536,7 @@ export function validateTakePairTokens(state, playerIndex, color) {
   if (state.activePlayerIndex !== playerIndex) {
     return { valid: false, error: 'Not active player turn' };
   }
-  if (state.pendingDiscard || state.pendingNobleChoice) {
+  if (state.pendingDiscard || state.pendingNobleChoice || state.pendingPowerDraft) {
     return { valid: false, error: 'Must resolve pending action first' };
   }
   if (!GEM_COLORS.includes(color)) {
@@ -587,7 +598,7 @@ export function validateReserveCard(state, playerIndex, options) {
   if (state.activePlayerIndex !== playerIndex) {
     return { valid: false, error: 'Not active player turn' };
   }
-  if (state.pendingDiscard || state.pendingNobleChoice) {
+  if (state.pendingDiscard || state.pendingNobleChoice || state.pendingPowerDraft) {
     return { valid: false, error: 'Must resolve pending action first' };
   }
   const player = state.players[playerIndex];
@@ -691,7 +702,7 @@ export function validatePurchaseCard(state, playerIndex, cardId) {
   if (state.activePlayerIndex !== playerIndex) {
     return { valid: false, error: 'Not active player turn' };
   }
-  if (state.pendingDiscard || state.pendingNobleChoice) {
+  if (state.pendingDiscard || state.pendingNobleChoice || state.pendingPowerDraft) {
     return { valid: false, error: 'Must resolve pending action first' };
   }
 
@@ -1176,7 +1187,7 @@ export function validatePassTurn(state, playerIndex) {
   if (state.activePlayerIndex !== playerIndex) {
     return { valid: false, error: 'Not active player turn' };
   }
-  if (state.pendingDiscard || state.pendingNobleChoice) {
+  if (state.pendingDiscard || state.pendingNobleChoice || state.pendingPowerDraft) {
     return { valid: false, error: 'Must resolve pending action first' };
   }
   return { valid: true };
@@ -1269,8 +1280,8 @@ function advanceTurn(state) {
   state.turnIndex += 1;
   state.turnDeadline = state.timeLimitSeconds > 0 ? Date.now() + state.timeLimitSeconds * 1000 : null;
 
-  // Check Super Powers reveal at Round 6 (AFTER activePlayerIndex is updated to the starting player!)
-  if (state.superPowersEnabled && !state.powersRevealed && state.roundIndex >= 6) {
+  // Check Super Powers reveal at Round 6 (for 'feats' rule)
+  if (state.superPowersEnabled && state.powersRule === 'feats' && !state.powersRevealed && state.roundIndex >= 6) {
     state.powersRevealed = true;
     logMove(
       state,
@@ -1280,6 +1291,150 @@ function advanceTurn(state) {
     );
     checkAllSuperPowerFeats(state);
   }
+
+  // Check Arcane Draft (Every 4 Rounds: 4, 8, 12, 16, 20, 24)
+  if (state.superPowersEnabled && state.powersRule === 'draft_every_4_rounds') {
+    checkAndTriggerPowerDraft(state);
+  }
+}
+
+/**
+ * Schedule of Arcane Drafts by Round:
+ * Round 4 & 8: Common Boons
+ * Round 12 & 16: Rare Relics / Curses
+ * Round 20 & 24: Mythic Wonders
+ * After Round 24: Powers stop!
+ */
+export const DRAFT_ROUNDS_TIER = {
+  4: 'common',
+  8: 'common',
+  12: 'rare',
+  16: 'rare',
+  20: 'mythic',
+  24: 'mythic'
+};
+
+export function checkAndTriggerPowerDraft(state) {
+  if (state.status !== 'in_progress') return;
+  const round = state.roundIndex;
+  if (!DRAFT_ROUNDS_TIER[round]) return; // Drafts stop after Round 24
+  if (state.draftsCompletedRounds && state.draftsCompletedRounds.includes(round)) return;
+
+  state.draftsCompletedRounds = state.draftsCompletedRounds || [];
+  state.draftsCompletedRounds.push(round);
+
+  const tier = DRAFT_ROUNDS_TIER[round];
+  const draftSchedule = [4, 8, 12, 16, 20, 24];
+  const draftNumber = draftSchedule.indexOf(round) + 1;
+
+  // Alternating chooser across draft cycles
+  const chooserIndex = (draftNumber - 1) % state.players.length;
+  const otherIndex = (chooserIndex + 1) % state.players.length;
+
+  const chooser = state.players[chooserIndex];
+  const otherPlayer = state.players[otherIndex];
+
+  // Find unclaimed powers of required tier
+  const claimedSet = new Set();
+  state.players.forEach(p => (p.powersClaimed || []).forEach(id => claimedSet.add(id)));
+
+  let tierPowers = Object.values(POWERS_DATA).filter(p => p.tier === tier && !claimedSet.has(p.id));
+  if (tierPowers.length < 2) {
+    tierPowers = Object.values(POWERS_DATA).filter(p => !claimedSet.has(p.id));
+  }
+
+  const shuffled = tierPowers.slice().sort(() => 0.5 - Math.random());
+  const cardA = shuffled[0];
+  const cardB = shuffled[1];
+
+  if (!cardA || !cardB) return;
+
+  state.pendingPowerDraft = {
+    round,
+    tier,
+    tierName: tier === 'common' ? 'Common Boon' : (tier === 'rare' ? 'Rare Artifact' : 'Mythic Wonder'),
+    draftNumber,
+    choosingPlayerIndex: chooserIndex,
+    choosingPlayerId: chooser.id,
+    choosingPlayerName: chooser.name,
+    otherPlayerIndex: otherIndex,
+    otherPlayerId: otherPlayer.id,
+    otherPlayerName: otherPlayer.name,
+    cards: [cardA.id, cardB.id]
+  };
+
+  logMove(
+    state,
+    chooser,
+    'draft_initiated',
+    `⚔️ Round ${round} Arcane Draft (${tier.toUpperCase()})! ${chooser.name} must choose 1 power; remaining card will go to ${otherPlayer.name}!`
+  );
+}
+
+export function executeChooseDraftPower(state, playerIndex, chosenPowerId) {
+  if (!state.pendingPowerDraft) {
+    throw new Error('No arcane draft is currently pending');
+  }
+  if (state.pendingPowerDraft.choosingPlayerIndex !== playerIndex) {
+    throw new Error('Not your turn to choose in the arcane draft');
+  }
+  if (!state.pendingPowerDraft.cards.includes(chosenPowerId)) {
+    throw new Error(`Invalid card chosen: ${chosenPowerId}`);
+  }
+
+  const { cards, choosingPlayerIndex, otherPlayerIndex } = state.pendingPowerDraft;
+  const chosenId = chosenPowerId;
+  const remainingId = cards.find(id => id !== chosenId);
+
+  const chooser = state.players[choosingPlayerIndex];
+  const otherPlayer = state.players[otherPlayerIndex];
+
+  // 1. Chooser claims chosen card
+  chooser.powersClaimed = chooser.powersClaimed || [];
+  chooser.powersClaimed.push(chosenId);
+  const defChosen = POWERS_DATA[chosenId];
+  if (defChosen.type === 'passive') {
+    applySuperPowerPassive(state, choosingPlayerIndex, chosenId);
+  } else if (defChosen.type === 'instant') {
+    executeSuperPowerInstant(state, choosingPlayerIndex, chosenId);
+  }
+
+  // 2. Other player receives remaining card
+  otherPlayer.powersClaimed = otherPlayer.powersClaimed || [];
+  otherPlayer.powersClaimed.push(remainingId);
+  const defRemaining = POWERS_DATA[remainingId];
+  if (defRemaining.type === 'passive') {
+    applySuperPowerPassive(state, otherPlayerIndex, remainingId);
+  } else if (defRemaining.type === 'instant') {
+    executeSuperPowerInstant(state, otherPlayerIndex, remainingId);
+  }
+
+  // Sequential celebration events for Three.js 3D flight & modal
+  state.unlockedPowerEvents = state.unlockedPowerEvents || [];
+  state.unlockedPowerEvents.push({
+    powerId: chosenId,
+    playerId: chooser.id,
+    playerIndex: choosingPlayerIndex,
+    playerName: chooser.name,
+    timestamp: Date.now()
+  });
+  state.unlockedPowerEvents.push({
+    powerId: remainingId,
+    playerId: otherPlayer.id,
+    playerIndex: otherPlayerIndex,
+    playerName: otherPlayer.name,
+    timestamp: Date.now() + 50
+  });
+
+  logMove(
+    state,
+    chooser,
+    'draft_resolved',
+    `⚔️ Arcane Draft Complete: ${chooser.name} drafted ${defChosen.name} (${defChosen.icon})! ${otherPlayer.name} received ${defRemaining.name} (${defRemaining.icon})!`
+  );
+
+  state.pendingPowerDraft = null;
+  return state;
 }
 
 /**

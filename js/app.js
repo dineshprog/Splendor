@@ -11,10 +11,11 @@ import {
   executePurchaseCard,
   executeDiscardTokens,
   executeChooseNoble,
+  executeChooseDraftPower,
   executePassTurn,
   GAME_MODES
 } from './engine.js?v=7.0';
-import { computeAiMove, computeAiDiscard, computeAiNobleChoice } from './ai.js?v=7.0';
+import { computeAiMove, computeAiDiscard, computeAiNobleChoice, computeAiDraftChoice } from './ai.js?v=7.0';
 import { SplendorUI } from './ui.js?v=7.0';
 import { reshuffleCardArtworks } from './cards-data.js?v=7.0';
 import { GemTokenVisualizer } from './visual3d.js?v=7.0';
@@ -60,6 +61,7 @@ class SplendorApp {
       onPurchaseCard: (cardId) => this.handlePlayerPurchase(cardId),
       onDiscardTokens: (discardMap) => this.handlePlayerDiscard(discardMap),
       onChooseNoble: (nobleId) => this.handlePlayerChooseNoble(nobleId),
+      onChooseDraftPower: (powerId) => this.handlePlayerChooseDraftPower(powerId),
       onUpdateVisualizer: (bank, staged) => this.visualizer?.update(bank, staged),
       onTurnTimeout: () => this.handleTurnTimeout(),
       onSendEmote: (text) => this.sendEmoteNetwork(text),
@@ -231,7 +233,8 @@ class SplendorApp {
     const tabJoin = document.getElementById('btn-tab-join-room');
     const joinCodeRow = document.getElementById('lobby-join-code-row');
 
-    const superPowersToggle = document.getElementById('lobby-toggle-super-powers');
+    const powersRuleSelect = document.getElementById('lobby-powers-rule-select');
+    const powersRuleDesc = document.getElementById('lobby-powers-rule-desc');
     const btnResume = document.getElementById('btn-resume-game');
 
     btnResume?.addEventListener('click', () => {
@@ -252,6 +255,28 @@ class SplendorApp {
       });
     }
 
+    if (powersRuleSelect) {
+      const storedRule = this.getStoredUserName('splendor_powers_rule', 'draft_every_4_rounds');
+      if (['none', 'nobles', 'draft_every_4_rounds'].includes(storedRule)) {
+        powersRuleSelect.value = storedRule;
+      }
+      const updatePowersRuleDesc = () => {
+        const val = powersRuleSelect.value;
+        this.setStoredUserName('splendor_powers_rule', val);
+        if (powersRuleDesc) {
+          if (val === 'none') {
+            powersRuleDesc.innerText = 'No super powers enabled. Standard merchant rules apply.';
+          } else if (val === 'nobles') {
+            powersRuleDesc.innerText = '7 Arcane Powers are sealed for the first 5 rounds. Starting at Round 6, powers can be claimed like nobles by achieving feats!';
+          } else {
+            powersRuleDesc.innerText = 'Every 4 rounds, 2 power cards appear on screen. The chooser takes one, and the rival gets the other! Stops after Round 24.';
+          }
+        }
+      };
+      powersRuleSelect.addEventListener('change', updatePowersRuleDesc);
+      updatePowersRuleDesc();
+    }
+
     if (gameModeSelect) {
       const storedMode = this.getStoredUserName('splendor_game_mode', 'classic');
       if (['classic', 'super_powers', 'onyx_syndicate', 'tier_ladder', 'color_supremacy', 'noble_court', 'rainbow_guild'].includes(storedMode)) {
@@ -263,17 +288,15 @@ class SplendorApp {
         if (targetPointsRow) {
           targetPointsRow.style.display = isPureObjective ? 'none' : 'flex';
         }
-        if (superPowersToggle) {
-          if (val === 'super_powers') {
-            superPowersToggle.checked = true;
-            superPowersToggle.disabled = true;
-          } else {
-            superPowersToggle.disabled = false;
+        if (powersRuleSelect && val === 'super_powers') {
+          if (powersRuleSelect.value === 'none') {
+            powersRuleSelect.value = 'draft_every_4_rounds';
+            powersRuleSelect.dispatchEvent(new Event('change'));
           }
         }
         const descriptions = {
           classic: 'Race to target prestige points (15-35 PTS). The timeless Renaissance competition.',
-          super_powers: '30 legendary super powers await! 7 mystery powers remain sealed for the first 5 rounds. Starting in Round 6, the arcane seals shatter, unlocking game-changing passives and game-breaking instant bursts through in-game feats!',
+          super_powers: '24 legendary super powers await! Choose your draft style or feat mode in the Super Powers Rule dropdown.',
           onyx_syndicate: 'The Black Market Guild offers supreme influence. First player to collect 10 Onyx (black) development cards wins immediately!',
           tier_ladder: 'Mastery requires true foundation. You must own at least 6 Tier 1 cards to purchase Tier 2 cards, and at least 6 Tier 2 cards to purchase Tier 3 cards.',
           color_supremacy: 'Corner the gemstone markets! The first player to buy 5 cards in any color earns that gem\'s Monopoly Trophy (1 pt). First player to collect 3 Trophies wins!',
@@ -375,7 +398,8 @@ class SplendorApp {
       const timerSec = parseInt(timerSelect.value, 10);
       const targetPoints = targetPointsSelect ? (parseInt(targetPointsSelect.value, 10) || 15) : 15;
       const gameMode = gameModeSelect ? gameModeSelect.value : 'classic';
-      const enableSuperPowers = (gameMode === 'super_powers') || (superPowersToggle?.checked === true);
+      const powersRule = powersRuleSelect ? powersRuleSelect.value : 'draft_every_4_rounds';
+      const enableSuperPowers = powersRule !== 'none';
       const aiDiff = aiDifficultySelect ? aiDifficultySelect.value : 'merchant';
       const p1Name = (p1Input?.value || '').trim() || 'Merchant 1';
       this.setStoredUserName('splendor_username', p1Name);
@@ -449,7 +473,7 @@ class SplendorApp {
           });
         }
       } else {
-        this.startLocalGame({ mode, count, timerSec, targetPoints, gameMode, aiDiff, playerConfigs, enableSuperPowers });
+        this.startLocalGame({ mode, count, timerSec, targetPoints, gameMode, aiDiff, playerConfigs, enableSuperPowers, powersRule });
       }
     });
 
@@ -595,13 +619,15 @@ class SplendorApp {
       }
     }
 
+    const powersRule = config.powersRule || (enableSuperPowers ? 'draft_every_4_rounds' : 'none');
     this.state = createGameState({
       playerNames,
       aiConfigs,
       timeLimitSeconds: timerSec,
       targetPoints: targetPoints || 15,
       gameMode: gameMode || 'classic',
-      enableSuperPowers: enableSuperPowers === true
+      enableSuperPowers: enableSuperPowers === true,
+      powersRule
     });
 
     const hasAiInPassAndPlay = (mode === 'pass_and_play') && aiConfigs.some(cfg => cfg !== null);
@@ -640,6 +666,40 @@ class SplendorApp {
 
   checkNextTurnAi() {
     if (this.state.status === 'completed' || this.isProcessingAi) return;
+
+    // Check if an Arcane Draft requires an AI chooser
+    if (this.state.pendingPowerDraft) {
+      const chooserIdx = this.state.pendingPowerDraft.choosingPlayerIndex;
+      const chooser = this.state.players[chooserIdx];
+      if (chooser && chooser.isAi) {
+        this.isProcessingAi = true;
+        this.ui?.setAiThinking(chooser.name, chooser.aiDifficulty || 'merchant');
+
+        setTimeout(() => {
+          try {
+            if (this.state.pendingPowerDraft) {
+              const cards = this.state.pendingPowerDraft.cards;
+              const chosenId = computeAiDraftChoice(this.state, chooserIdx, cards);
+              executeChooseDraftPower(this.state, chooserIdx, chosenId);
+              soundEngine.playTrumpet();
+              this.broadcastStateIfOnline({
+                type: 'draft_power',
+                playerIndex: chooserIdx,
+                chosenPowerId: chosenId,
+                summary: `${chooser.name} drafted an arcane power`
+              });
+            }
+          } catch (e) {
+            console.error('Error in AI draft pick:', e);
+          }
+          this.isProcessingAi = false;
+          this.syncGameState();
+        }, 1300);
+        return;
+      }
+      // If chooser is a human, pause until they make their selection
+      return;
+    }
 
     const activePlayer = this.state.players[this.state.activePlayerIndex];
     if (activePlayer && activePlayer.isAi) {
@@ -887,6 +947,25 @@ class SplendorApp {
       this.syncGameState();
     } catch (err) {
       this.ui.showGameAlert('⚠️ Noble Error', err.message);
+    }
+  }
+
+  handlePlayerChooseDraftPower(chosenPowerId) {
+    try {
+      if (!this.state.pendingPowerDraft) return;
+      const chooserIdx = this.state.pendingPowerDraft.choosingPlayerIndex;
+      const chooser = this.state.players[chooserIdx];
+      executeChooseDraftPower(this.state, chooserIdx, chosenPowerId);
+      soundEngine.playTrumpet();
+      this.broadcastStateIfOnline({
+        type: 'draft_power',
+        playerIndex: chooserIdx,
+        chosenPowerId,
+        summary: `${chooser?.name || 'Player'} drafted an arcane power`
+      });
+      this.syncGameState();
+    } catch (err) {
+      this.ui.showGameAlert('⚠️ Draft Error', err.message);
     }
   }
 
