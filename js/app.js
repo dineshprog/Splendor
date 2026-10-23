@@ -265,11 +265,11 @@ class SplendorApp {
         this.setStoredUserName('splendor_powers_rule', val);
         if (powersRuleDesc) {
           if (val === 'none') {
-            powersRuleDesc.innerText = 'No super powers enabled. Standard merchant rules apply.';
+            powersRuleDesc.innerText = '🏛️ Pure Renaissance: Standard merchant competition with no arcane powers or magical interference.';
           } else if (val === 'nobles') {
-            powersRuleDesc.innerText = '7 Arcane Powers are sealed for the first 5 rounds. Starting at Round 6, powers can be claimed like nobles by achieving feats!';
+            powersRuleDesc.innerText = '🔓 Shattered Seals: 7 ancient powers remain sealed for 5 rounds. At Round 6, the seals shatter and can be claimed like nobles by achieving feats!';
           } else {
-            powersRuleDesc.innerText = 'Every 4 rounds, 2 power cards appear on screen. The chooser takes one, and the rival gets the other! Stops after Round 24.';
+            powersRuleDesc.innerText = '⚔️ Dueling Destinies: Every 4 rounds, fate presents 2 arcane cards. Pick 1 for your arsenal, and the remaining power goes to your rival! Stops after Round 24.';
           }
         }
       };
@@ -295,13 +295,13 @@ class SplendorApp {
           }
         }
         const descriptions = {
-          classic: 'Race to target prestige points (15-35 PTS). The timeless Renaissance competition.',
-          super_powers: '24 legendary super powers await! Choose your draft style or feat mode in the Super Powers Rule dropdown.',
-          onyx_syndicate: 'The Black Market Guild offers supreme influence. First player to collect 10 Onyx (black) development cards wins immediately!',
-          tier_ladder: 'Mastery requires true foundation. You must own at least 6 Tier 1 cards to purchase Tier 2 cards, and at least 6 Tier 2 cards to purchase Tier 3 cards.',
-          color_supremacy: 'Corner the gemstone markets! The first player to buy 5 cards in any color earns that gem\'s Monopoly Trophy (1 pt). First player to collect 3 Trophies wins!',
-          noble_court: 'Prestige is nothing without royal backing. In this court intrigue, the first merchant to attract 3 Noble patrons wins the crown!',
-          rainbow_guild: 'A true master cannot specialize in only one trade. First merchant to assemble at least 3 development cards in each of the 5 colors (15 cards total) wins!'
+          classic: '👑 Crown of Prestige: Race to target prestige points (15-35 PTS). The timeless Renaissance competition.',
+          super_powers: '⚡ Arcane Ascension: 24 legendary super powers await! Customize your arcane experience below with Pure Renaissance, Shattered Seals, or Dueling Destinies.',
+          onyx_syndicate: '🖤 Shadow Syndicate: The Black Market Guild offers supreme influence. First player to collect 10 Onyx (black) development cards wins immediately!',
+          tier_ladder: '🪜 Guild Hierarchy: Mastery requires true foundation. You must own at least 6 Tier 1 cards to purchase Tier 2 cards, and at least 6 Tier 2 cards to purchase Tier 3 cards.',
+          color_supremacy: '⭐ Merchant Cartel: Corner the gemstone markets! The first player to buy 5 cards in any color earns that gem\'s Monopoly Trophy (1 pt). First player to collect 3 Trophies wins!',
+          noble_court: '⚜️ Royal Court Intrigue: Prestige is nothing without royal backing. In this court intrigue, the first merchant to attract 3 Noble patrons wins the crown!',
+          rainbow_guild: '🌈 Renaissance Prism: A true master cannot specialize in only one trade. First merchant to assemble at least 3 development cards in each of the 5 colors (15 cards total) wins!'
         };
         if (gameModeDesc) gameModeDesc.innerText = descriptions[val] || descriptions.classic;
       };

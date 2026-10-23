@@ -2263,7 +2263,9 @@ export class SplendorUI {
       if (isOther) el.classList.add('draft-card-other-pick');
       if (!isChooserLocal) el.classList.add('disabled');
 
-      const targetBadge = def.target === 'opponent'
+      const isCurse = (def.shortDesc && def.shortDesc.toLowerCase().includes('curse')) ||
+                      (def.description && (def.description.toLowerCase().includes('opponent cannot') || def.description.toLowerCase().includes('opponent must') || def.description.toLowerCase().includes('siphon')));
+      const targetBadge = isCurse
         ? `<span class="draft-card-badge badge-curse">⚡ RIVAL CURSE</span>`
         : `<span class="draft-card-badge badge-boon">✨ BENEFICIAL BOON</span>`;
 
@@ -2277,7 +2279,7 @@ export class SplendorUI {
         <div class="draft-card-icon">${def.icon}</div>
         <div class="draft-card-title">${def.name}</div>
         <div>${targetBadge}</div>
-        <div class="draft-card-desc">${def.desc}</div>
+        <div class="draft-card-desc">${def.description || def.shortDesc}</div>
       `;
 
       el.onclick = () => {

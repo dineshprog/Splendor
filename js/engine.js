@@ -33,8 +33,8 @@ export function shuffle(array) {
 export const GAME_MODES = {
   classic: {
     id: 'classic',
-    name: 'Classic Splendor',
-    badge: '👑 Classic',
+    name: 'Crown of Prestige',
+    badge: '👑 Crown of Prestige',
     shortDesc: 'Race to target prestige points (15-35 PTS)',
     description: 'The standard Renaissance competition. Collect gems, purchase developments, and attract nobles to reach the target prestige points.',
     icon: '👑'
@@ -42,7 +42,7 @@ export const GAME_MODES = {
   onyx_syndicate: {
     id: 'onyx_syndicate',
     name: 'Shadow Syndicate',
-    badge: '🖤 Onyx Syndicate',
+    badge: '🖤 Shadow Syndicate',
     shortDesc: 'First to collect 10 Onyx (black) cards wins',
     description: 'The Black Market Guild offers supreme influence. The first merchant to collect 10 Onyx (black) development cards wins immediately!',
     icon: '🖤',
@@ -50,8 +50,8 @@ export const GAME_MODES = {
   },
   tier_ladder: {
     id: 'tier_ladder',
-    name: 'Guild Ladder',
-    badge: '🪜 Guild Ladder',
+    name: 'Guild Hierarchy',
+    badge: '🪜 Guild Hierarchy',
     shortDesc: 'Requires 6 Tier 1 cards for Tier 2; 6 Tier 2 cards for Tier 3',
     description: 'Mastery requires true foundation. You must own at least 6 Tier 1 cards to purchase Tier 2 cards, and at least 6 Tier 2 cards to purchase Tier 3 cards.',
     icon: '🪜',
@@ -59,8 +59,8 @@ export const GAME_MODES = {
   },
   color_supremacy: {
     id: 'color_supremacy',
-    name: 'Color Monopoly',
-    badge: '⭐ Color Monopoly',
+    name: 'Merchant Cartel',
+    badge: '⭐ Merchant Cartel',
     shortDesc: 'First to 5 cards in a color gets 1 Trophy; first to 3 Trophies wins',
     description: 'Corner the gemstone markets! The first player to reach 5 cards in any color earns that gem’s Monopoly Trophy (1 pt). First player to collect 3 Monopoly Trophies wins!',
     icon: '⭐',
@@ -69,8 +69,8 @@ export const GAME_MODES = {
   },
   noble_court: {
     id: 'noble_court',
-    name: 'Noble Court',
-    badge: '⚜️ Noble Court',
+    name: 'Royal Court Intrigue',
+    badge: '⚜️ Royal Court',
     shortDesc: 'First merchant to recruit 3 Noble Patrons wins',
     description: 'Prestige is nothing without royal backing. In this court intrigue, the first merchant to attract 3 Noble patrons wins the crown!',
     icon: '⚜️',
@@ -87,10 +87,10 @@ export const GAME_MODES = {
   },
   super_powers: {
     id: 'super_powers',
-    name: 'Super Powers',
-    badge: '⚡ Super Powers',
-    shortDesc: '5 Arcane Powers hidden for 5 rounds, then unlocked!',
-    description: '30 legendary super powers await! 5 mystery powers are drawn and remain sealed for the first 5 rounds. Starting in Round 6, the arcane seals shatter, allowing players to unlock game-changing passives and game-breaking instant bursts through in-game feats!',
+    name: 'Arcane Ascension',
+    badge: '⚡ Arcane Ascension',
+    shortDesc: '24 Arcane Powers active with customizable draft rules',
+    description: '24 legendary super powers await! Combine with Pure Renaissance, Shattered Seals, or Dueling Destinies.',
     icon: '⚡',
     twoPlayerRecommended: true
   }
