@@ -1,12 +1,12 @@
 /**
  * Splendor Super Powers (Arcane Guild Powers) Dataset
- * 30 Unique Super Powers divided into 3 Tiers:
- * - Tier 1: Tactical Boons (Common / Cyan) - 12 Powers
- * - Tier 2: Relic Artifacts (Rare / Purple) - 10 Powers
+ * 24 Unique Super Powers divided evenly across 3 Tiers (8-8-8 Balanced Model):
+ * - Tier 1: Tactical Boons (Common / Cyan) - 8 Powers
+ * - Tier 2: Relic Artifacts & Adversarial Curses (Rare / Purple) - 8 Powers
  * - Tier 3: Mythic Wonders (Legendary / Gold) - 8 Powers
  *
- * Updated with high-impact adversarial curses (Guild Embargo, Sovereign Sanctions,
- * Coinage Mandate, Imperial Tithe, Espionage Heist) and proactive feats without trail-by-point restrictions.
+ * Streamlined to eliminate all duplicate mechanics, single-color biases,
+ * and consecutive-token requirements in favor of strategic milestone feats.
  */
 
 import { GEM_COLORS, CARDS_BY_ID, NOBLES_BY_ID } from './cards-data.js';
@@ -15,7 +15,7 @@ const countTokens = tokens => Object.values(tokens || {}).reduce((s, n) => s + (
 
 export const POWERS_DATA = {
   // -------------------------------------------------------------
-  // TIER 1: TACTICAL BOONS (COMMON / CYAN) - 12 POWERS
+  // TIER 1: TACTICAL BOONS (COMMON / CYAN) - 8 POWERS
   // -------------------------------------------------------------
   midas_crucible: {
     id: 'midas_crucible',
@@ -45,21 +45,6 @@ export const POWERS_DATA = {
     featDesc: 'Hold 10 tokens with at least 2 tokens in 4 distinct gem colors.',
     checkFeat: (state, player) => countTokens(player.tokens) >= 10 && GEM_COLORS.filter(c => (player.tokens[c] || 0) >= 2).length >= 4,
     getFeatProgress: (state, player) => `${countTokens(player.tokens)}/10 Tokens (${GEM_COLORS.filter(c => (player.tokens[c] || 0) >= 2).length}/4 Colors 2+)`
-  },
-
-  double_quarry: {
-    id: 'double_quarry',
-    name: 'Double Quarry',
-    tier: 'common',
-    tierName: 'Common Boon',
-    colorHex: '#38bdf8',
-    icon: '⛏️',
-    type: 'passive',
-    shortDesc: 'Taking 2 same gems also grants 1 random distinct gem.',
-    description: 'Rich gemstone veins yield collateral riches. Taking a pair of 2 same gems also grants 1 additional token of any different color from the bank.',
-    featDesc: 'Take a pair of 2 same gems in 3 consecutive rounds.',
-    checkFeat: (state, player) => (player.consecutivePairs || 0) >= 3,
-    getFeatProgress: (state, player) => `${Math.min(3, player.consecutivePairs || 0)}/3 Consecutive Pairs`
   },
 
   prismatic_harmony: {
@@ -92,21 +77,6 @@ export const POWERS_DATA = {
     getFeatProgress: (state, player) => `${Math.min(7, player.cardsPurchased.length)}/7 Cards (Nobles: ${player.noblesAcquired.length}/0)`
   },
 
-  diamond_cartel: {
-    id: 'diamond_cartel',
-    name: 'Diamond Cartel',
-    tier: 'common',
-    tierName: 'Common Boon',
-    colorHex: '#38bdf8',
-    icon: '💠',
-    type: 'passive',
-    shortDesc: 'All cards with Diamond cost require 1 less Diamond.',
-    description: 'Direct diamond cutting agreements lower overhead. All development cards requiring Diamond cost 1 fewer Diamond for you.',
-    featDesc: 'Own at least 5 Diamond bonus development cards.',
-    checkFeat: (state, player) => (player.bonuses.diamond || 0) >= 5,
-    getFeatProgress: (state, player) => `${Math.min(5, player.bonuses.diamond || 0)}/5 Diamonds`
-  },
-
   smugglers_warehouse: {
     id: 'smugglers_warehouse',
     name: "Smuggler's Warehouse",
@@ -122,21 +92,6 @@ export const POWERS_DATA = {
     getFeatProgress: (state, player) => `${player.cardsReserved.filter(id => CARDS_BY_ID[id] && CARDS_BY_ID[id].tier >= 2).length}/2 Tier 2/3 Reserved (${player.cardsReserved.length}/3 Total)`
   },
 
-  alchemical_duplication: {
-    id: 'alchemical_duplication',
-    name: 'Alchemical Duplication',
-    tier: 'common',
-    tierName: 'Common Boon',
-    colorHex: '#38bdf8',
-    icon: '🧪',
-    type: 'passive',
-    shortDesc: 'Taking a pair of 2 gems also gives 1 token of another available pair.',
-    description: 'Catalytic resonance duplicates gemstone yields. Whenever you take 2 tokens of the same color, gain 1 bonus token of any other color that also has 2+ in bank.',
-    featDesc: 'Take pairs of 2 same gems in 2 consecutive turns.',
-    checkFeat: (state, player) => (player.consecutivePairs || 0) >= 2,
-    getFeatProgress: (state, player) => `${Math.min(2, player.consecutivePairs || 0)}/2 Consecutive Pairs`
-  },
-
   shadow_siphon: {
     id: 'shadow_siphon',
     name: 'Shadow Siphon',
@@ -146,40 +101,10 @@ export const POWERS_DATA = {
     icon: '👤',
     type: 'passive',
     shortDesc: 'Whenever opponent takes bank tokens, siphon 1 token to your hand.',
-    description: 'Informants in the rival vaults. Whenever your opponent takes tokens from the bank, claim 1 token of their most abundant color for yourself.',
+    description: 'Informants in rival vaults. Whenever your opponent takes tokens from the bank, siphon 1 token of their most abundant color for yourself.',
     featDesc: 'Own at least 4 development cards while holding zero tokens in hand.',
     checkFeat: (state, player) => player.cardsPurchased.length >= 4 && countTokens(player.tokens) === 0,
     getFeatProgress: (state, player) => `${Math.min(4, player.cardsPurchased.length)}/4 Cards (Tokens: ${countTokens(player.tokens)}/0)`
-  },
-
-  bribed_courier: {
-    id: 'bribed_courier',
-    name: 'Bribed Courier',
-    tier: 'common',
-    tierName: 'Common Boon',
-    colorHex: '#38bdf8',
-    icon: '📬',
-    type: 'instant',
-    shortDesc: 'Instantly blind reserve top Tier 1 card + gain 2 Gold Jokers.',
-    description: 'Couriers intercept royal shipments. Instantly draw the top card of the Tier 1 deck into your reserved hand (ignoring limit) and gain 2 Gold Jokers!',
-    featDesc: 'Have reserved at least 2 cards across the match.',
-    checkFeat: (state, player) => (player.totalReservedCount || 0) >= 2,
-    getFeatProgress: (state, player) => `${Math.min(2, player.totalReservedCount || 0)}/2 Reserved Total`
-  },
-
-  gem_embargo_boon: {
-    id: 'gem_embargo_boon',
-    name: 'Market Interdict',
-    tier: 'common',
-    tierName: 'Common Boon',
-    colorHex: '#38bdf8',
-    icon: '⛔',
-    type: 'instant',
-    shortDesc: 'Opponent cannot take tokens of your most abundant gem for 3 rounds.',
-    description: 'Proclaim an immediate trade interdict. Opponent is prohibited from taking tokens of your most abundant gem color for the next 3 rounds.',
-    featDesc: 'Hold at least 4 tokens of the exact same color in hand.',
-    checkFeat: (state, player) => GEM_COLORS.some(c => (player.tokens[c] || 0) >= 4),
-    getFeatProgress: (state, player) => `${Math.max(...GEM_COLORS.map(c => player.tokens[c] || 0))}/4 of 1 Color`
   },
 
   merchants_resurgence: {
@@ -197,8 +122,23 @@ export const POWERS_DATA = {
     getFeatProgress: (state, player) => `${countTokens(player.tokens)}/0 Tokens | ${player.cardsReserved.length}/0 Res | ${Math.min(5, player.cardsPurchased.length)}/5 Cards`
   },
 
+  silk_road_caravan: {
+    id: 'silk_road_caravan',
+    name: 'Silk Road Caravan',
+    tier: 'common',
+    tierName: 'Common Boon',
+    colorHex: '#38bdf8',
+    icon: '🐫',
+    type: 'passive',
+    shortDesc: 'Taking 3 distinct gems you do not hold awards +1 Gold Joker.',
+    description: 'Caravan masteries reward diversity. Whenever you take 3 distinct tokens that are all colors you held 0 of, claim +1 Gold Joker from the bank (if available).',
+    featDesc: 'End your turn holding at least 1 token of 4 different colors.',
+    checkFeat: (state, player) => GEM_COLORS.filter(c => (player.tokens[c] || 0) >= 1).length >= 4,
+    getFeatProgress: (state, player) => `${GEM_COLORS.filter(c => (player.tokens[c] || 0) >= 1).length}/4 Different Gem Colors in Hand`
+  },
+
   // -------------------------------------------------------------
-  // TIER 2: RELIC ARTIFACTS (RARE / PURPLE) - 10 POWERS
+  // TIER 2: RELIC ARTIFACTS & ADVERSARIAL CURSES (RARE / PURPLE) - 8 POWERS
   // -------------------------------------------------------------
   guild_embargo: {
     id: 'guild_embargo',
@@ -269,40 +209,25 @@ export const POWERS_DATA = {
     icon: '⚖️',
     type: 'instant',
     shortDesc: 'Curse: Opponent must pay +3 tokens surcharge on next 3 card purchases!',
-    description: 'Venetian customs levy heavy extortion. Opponent must surrender an additional 3 tokens to the bank on their next 3 card purchases.',
+    description: 'Crown tax collectors impose an exorbitant levy. Your rival must pay an additional surcharge of +3 physical tokens to the bank on each of their next 3 card purchases!',
     featDesc: 'Spend at least 4 tokens of the same color on a single card purchase.',
     checkFeat: (state, player) => !!player.hasSpentFourSameColorSingleBuy,
-    getFeatProgress: (state, player) => player.hasSpentFourSameColorSingleBuy ? 'Done ✓' : '0/1 Buy (paid 4+ same gem)'
+    getFeatProgress: (state, player) => player.hasSpentFourSameColorSingleBuy ? 'Done ✓' : '0/1 Single Color Buy (4+ tokens)'
   },
 
-  inverted_economy: {
-    id: 'inverted_economy',
-    name: 'Inverted Economy',
+  espionage_heist: {
+    id: 'espionage_heist',
+    name: 'Espionage Heist',
     tier: 'rare',
     tierName: 'Rare Artifact',
     colorHex: '#c084fc',
-    icon: '🔄',
-    type: 'passive',
-    shortDesc: 'Tier 1 cards cost +1 token, but Tier 3 cards cost 2 fewer!',
-    description: 'Skipping the peasantry for high aristocracy. Tier 1 cards cost you +1 token, but powerful Tier 3 cards cost 2 fewer tokens!',
-    featDesc: 'Own at least 4 Tier 2 development cards.',
-    checkFeat: (state, player) => player.cardsPurchased.filter(id => CARDS_BY_ID[id] && CARDS_BY_ID[id].tier === 2).length >= 4,
-    getFeatProgress: (state, player) => `${player.cardsPurchased.filter(id => CARDS_BY_ID[id] && CARDS_BY_ID[id].tier === 2).length}/4 Tier 2 Cards`
-  },
-
-  aristocrats_heist: {
-    id: 'aristocrats_heist',
-    name: "Aristocrat's Heist",
-    tier: 'rare',
-    tierName: 'Rare Artifact',
-    colorHex: '#c084fc',
-    icon: '🎭',
+    icon: '🗝️',
     type: 'instant',
-    shortDesc: 'Instantly recruit 1 Noble from the board regardless of reqs.',
-    description: 'Forged royal lineages fool the nobility. Instantly recruit any 1 Noble currently on the board, ignoring all requirements!',
-    featDesc: 'Accumulate a total of 12 card bonuses across all colors.',
-    checkFeat: (state, player) => Object.values(player.bonuses).reduce((a, b) => a + b, 0) >= 12,
-    getFeatProgress: (state, player) => `${Object.values(player.bonuses).reduce((a, b) => a + b, 0)}/12 Bonuses`
+    shortDesc: 'Steal 1 reserved card directly from your opponent’s hand!',
+    description: 'Master infiltrators crack the rival vault. Select and snatch 1 reserved card directly from your opponent into your own reserved hand!',
+    featDesc: 'Hold 3 reserved cards simultaneously in your hand.',
+    checkFeat: (state, player) => player.cardsReserved.length >= 3,
+    getFeatProgress: (state, player) => `${player.cardsReserved.length}/3 Reserved Cards in Hand`
   },
 
   black_market_master: {
@@ -314,25 +239,10 @@ export const POWERS_DATA = {
     icon: '🕶️',
     type: 'passive',
     shortDesc: 'Gold Jokers count as 2 tokens on card purchases.',
-    description: 'Counterfeit craftsmanship multiplies gold value. Each Gold Joker you spend counts as 2 tokens of your required color.',
+    description: 'Shadow syndicates prize gold above all. Every Gold Joker in your possession satisfies 2 tokens of deficit when purchasing any development card.',
     featDesc: 'Spend at least 3 Gold Jokers on a single card purchase.',
     checkFeat: (state, player) => (player.maxGoldSpentSingleCard || 0) >= 3,
-    getFeatProgress: (state, player) => `${Math.min(3, player.maxGoldSpentSingleCard || 0)}/3 Gold in 1 Buy`
-  },
-
-  espionage_heist: {
-    id: 'espionage_heist',
-    name: 'Espionage Heist',
-    tier: 'rare',
-    tierName: 'Rare Artifact',
-    colorHex: '#c084fc',
-    icon: '🗝️',
-    type: 'instant',
-    shortDesc: "Steal 1 reserved card directly from your opponent's private hand!",
-    description: 'Master thieves infiltrate your rival’s desk. Instantly seize 1 reserved card from your opponent’s hand into your reserved hand (if space permits)!',
-    featDesc: 'Hold 3 reserved cards simultaneously in your hand.',
-    checkFeat: (state, player) => player.cardsReserved.length >= 3,
-    getFeatProgress: (state, player) => `${player.cardsReserved.length}/3 Reserved Cards`
+    getFeatProgress: (state, player) => `${Math.min(3, player.maxGoldSpentSingleCard || 0)}/3 Gold Jokers in single purchase`
   },
 
   market_freeze: {
@@ -344,7 +254,7 @@ export const POWERS_DATA = {
     icon: '❄️',
     type: 'instant',
     shortDesc: 'The card market is frozen for 3 rounds (only reserved cards can be bought)!',
-    description: 'A sudden market closure halts public trading. For 3 rounds, neither merchant can purchase cards from the table — purchases can ONLY be made from reserved hands!',
+    description: 'Winter freezes the trade canals. For 3 rounds, no merchant may buy cards directly from the table — only cards already in a player’s reserved hand can be purchased!',
     featDesc: 'Purchase at least 3 cards directly from your reserved hand.',
     checkFeat: (state, player) => (player.reservedPurchasedCount || 0) >= 3,
     getFeatProgress: (state, player) => `${Math.min(3, player.reservedPurchasedCount || 0)}/3 Reserved Cards Purchased`
@@ -363,9 +273,9 @@ export const POWERS_DATA = {
     type: 'instant',
     shortDesc: 'Take 3 consecutive turns back-to-back!',
     description: 'Time bends to your royal command. Immediately take 3 consecutive full turns while your rival is frozen in time!',
-    featDesc: 'Complete 2 card purchases in consecutive turns without using Gold Jokers.',
-    checkFeat: (state, player) => (player.consecutiveNoGoldPurchases || 0) >= 2,
-    getFeatProgress: (state, player) => `${Math.min(2, player.consecutiveNoGoldPurchases || 0)}/2 Consecutive Pure Buys`
+    featDesc: 'Purchase at least 4 development cards across the match without using Gold Jokers.',
+    checkFeat: (state, player) => (player.totalNoGoldPurchases || 0) >= 4,
+    getFeatProgress: (state, player) => `${Math.min(4, player.totalNoGoldPurchases || 0)}/4 Pure Purchases (0 Gold)`
   },
 
   royal_usurpation: {
@@ -442,21 +352,6 @@ export const POWERS_DATA = {
     getFeatProgress: (state, player) => `${Math.min(14, player.cardsPurchased.length)}/14 Cards`
   },
 
-  dynastic_hegemony: {
-    id: 'dynastic_hegemony',
-    name: 'Dynastic Hegemony',
-    tier: 'mythic',
-    tierName: 'Mythic Wonder',
-    colorHex: '#fbbf24',
-    icon: '🏆',
-    type: 'passive',
-    shortDesc: 'Winning prestige goal reduced to 12 Points for you!',
-    description: 'Your dynasty gains divine right. The winning prestige requirement is lowered to 12 points for you, while remaining standard for your opponent!',
-    featDesc: 'Own at least 3 development cards in all 5 gem colors (15 cards total).',
-    checkFeat: (state, player) => GEM_COLORS.every(c => (player.bonuses[c] || 0) >= 3),
-    getFeatProgress: (state, player) => `${GEM_COLORS.filter(c => (player.bonuses[c] || 0) >= 3).length}/5 Colors with 3+ Cards`
-  },
-
   bankrupting_curse: {
     id: 'bankrupting_curse',
     name: 'The Bankrupting Curse',
@@ -472,19 +367,34 @@ export const POWERS_DATA = {
     getFeatProgress: (state, player) => player.hasBoughtFivePointTier3WithZeroGold ? 'Done ✓' : '0/1 Pure 5-PT T3 Card'
   },
 
-  emperors_regalia: {
-    id: 'emperors_regalia',
-    name: "The Emperor's Regalia",
+  celestial_alignment: {
+    id: 'celestial_alignment',
+    name: 'Celestial Alignment',
     tier: 'mythic',
     tierName: 'Mythic Wonder',
     colorHex: '#fbbf24',
-    icon: '⚜️',
-    type: 'instant',
-    shortDesc: 'Instantly recruit ALL remaining Nobles on the table!',
-    description: 'Ascend to the imperial throne. Immediately claim every remaining Noble tile left on the table into your court!',
-    featDesc: 'Reach at least 14 Prestige Points without owning any Nobles.',
-    checkFeat: (state, player) => player.prestigePoints >= 14 && player.noblesAcquired.length === 0,
-    getFeatProgress: (state, player) => `${Math.min(14, player.prestigePoints)}/14 PTS (Nobles: ${player.noblesAcquired.length}/0)`
+    icon: '🌌',
+    type: 'passive',
+    shortDesc: 'Gain +1 permanent Wildcard bonus for each color with 3+ cards.',
+    description: 'The celestial spheres harmonize with your merchant empire. For every gem color in which you own at least 3 development cards, gain +1 permanent Wildcard discount!',
+    featDesc: 'Own at least 3 card bonuses in at least 3 different gem colors.',
+    checkFeat: (state, player) => GEM_COLORS.filter(c => (player.bonuses[c] || 0) >= 3).length >= 3,
+    getFeatProgress: (state, player) => `${GEM_COLORS.filter(c => (player.bonuses[c] || 0) >= 3).length}/3 Colors with 3+ Cards`
+  },
+
+  guildmaster_sovereignty: {
+    id: 'guildmaster_sovereignty',
+    name: "Guildmaster's Sovereignty",
+    tier: 'mythic',
+    tierName: 'Mythic Wonder',
+    colorHex: '#fbbf24',
+    icon: '👑',
+    type: 'passive',
+    shortDesc: 'Buying any card awards 1 free token of that card’s gem color.',
+    description: 'Absolute dominion over guild commerce. Whenever you purchase any development card, automatically gain 1 physical token of that card’s bonus color from the bank (if available).',
+    featDesc: 'Own at least 10 development cards across any tiers.',
+    checkFeat: (state, player) => player.cardsPurchased.length >= 10,
+    getFeatProgress: (state, player) => `${Math.min(10, player.cardsPurchased.length)}/10 Cards Purchased`
   }
 };
 

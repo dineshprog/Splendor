@@ -191,7 +191,9 @@ export function createGameState(options = {}) {
       goldPerReserve: 1,
       wildBonuses: 0,
       synergyDiscounts: 0,
-      consecutivePairs: 0,
+      hasSilkRoadCaravan: false,
+      hasCelestialAlignment: false,
+      hasGuildmasterSovereignty: false,
       totalReservedCount: 0,
       maxGoldSpentSingleCard: 0,
       hasBoughtCardWithZeroTokens: false,
@@ -202,7 +204,7 @@ export function createGameState(options = {}) {
       hasBoughtFivePointTier3WithZeroGold: false,
       hasSpentFourSameColorSingleBuy: false,
       reservedPurchasedCount: 0,
-      consecutiveNoGoldPurchases: 0,
+      totalNoGoldPurchases: 0,
       hasSabotagedOpponentCard: false,
       hasSabotagedHeavyTier3Card: false,
       activeCurses: {},
@@ -299,9 +301,6 @@ export function canPlayerBuyCard(state, playerIndex, cardId) {
 export function getEffectiveCardCost(player, card) {
   if (!card) return {};
   const cost = { ...card.cost };
-  if (player && player.hasDiamondCartel && cost.diamond) {
-    cost.diamond = Math.max(0, cost.diamond - 1);
-  }
   if (player && player.hasInvertedEconomy) {
     if (card.tier === 1) {
       const firstCol = GEM_COLORS.find(c => (cost[c] || 0) > 0) || 'diamond';
@@ -341,7 +340,10 @@ export function canAffordCard(player, card) {
   }
 
   const titheSurcharge = (player.activeCurses?.imperial_tithe?.chargesLeft > 0) ? (player.activeCurses.imperial_tithe.surcharge || 3) : 0;
-  const wildDiscounts = (player.wildBonuses || 0) + (player.synergyDiscounts > 0 ? 2 : 0);
+  const celestialBonus = (player.hasCelestialAlignment || (player.powersClaimed && player.powersClaimed.includes('celestial_alignment')))
+    ? GEM_COLORS.filter(c => (player.bonuses[c] || 0) >= 3).length
+    : 0;
+  const wildDiscounts = (player.wildBonuses || 0) + celestialBonus + (player.synergyDiscounts > 0 ? 2 : 0);
   const remainingDeficit = Math.max(0, totalDeficit - wildDiscounts) + titheSurcharge;
   const goldMultiplier = player.hasBlackMarket ? 2 : 1;
   return ((player.tokens.gold || 0) * goldMultiplier) >= remainingDeficit;
@@ -374,8 +376,11 @@ export function calculateCardPayment(player, card) {
 
   const titheSurcharge = (player.activeCurses?.imperial_tithe?.chargesLeft > 0) ? (player.activeCurses.imperial_tithe.surcharge || 3) : 0;
 
-  // Apply wild bonuses & synergy discounts
-  const wildDiscounts = (player.wildBonuses || 0) + (player.synergyDiscounts > 0 ? 2 : 0);
+  // Apply wild bonuses, celestial alignment & synergy discounts
+  const celestialBonus = (player.hasCelestialAlignment || (player.powersClaimed && player.powersClaimed.includes('celestial_alignment')))
+    ? GEM_COLORS.filter(c => (player.bonuses[c] || 0) >= 3).length
+    : 0;
+  const wildDiscounts = (player.wildBonuses || 0) + celestialBonus + (player.synergyDiscounts > 0 ? 2 : 0);
   const deficitCovered = Math.min(totalDeficit, wildDiscounts);
   const remainingDeficit = (totalDeficit - deficitCovered) + titheSurcharge;
 
@@ -464,7 +469,7 @@ export function executeTakeDistinctTokens(state, playerIndex, colors) {
   if (!validation.valid) throw new Error(validation.error);
 
   const player = state.players[playerIndex];
-  player.consecutivePairs = 0;
+  const hadZeroInAllColors = colors.length === 3 && colors.every(c => (player.tokens[c] || 0) === 0);
 
   // Deduct from bank, add to player
   for (const c of colors) {
@@ -472,6 +477,13 @@ export function executeTakeDistinctTokens(state, playerIndex, colors) {
     player.tokens[c] += 1;
   }
   player.stats.tokensGained += colors.length;
+
+  // Silk Road Caravan bonus
+  if ((player.hasSilkRoadCaravan || (player.powersClaimed && player.powersClaimed.includes('silk_road_caravan'))) && hadZeroInAllColors && state.bank.gold > 0) {
+    state.bank.gold -= 1;
+    player.tokens.gold += 1;
+    logMove(state, player, 'power_effect', '🐫 Silk Road Caravan: Took 3 fresh gems you did not hold! Gained +1 Gold Joker!');
+  }
 
   const colorNames = colors.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join(', ');
   logMove(state, player, 'take_tokens', `Took ${colors.length} distinct gems: [${colorNames}]`);
@@ -538,32 +550,9 @@ export function executeTakePairTokens(state, playerIndex, color) {
   state.bank[color] -= 2;
   player.tokens[color] += 2;
   player.stats.tokensGained += 2;
-  player.consecutivePairs = (player.consecutivePairs || 0) + 1;
 
   const colorName = color.charAt(0).toUpperCase() + color.slice(1);
-  let actionDesc = `Took 2 ${colorName} gems`;
-
-  // Double Quarry bonus
-  if (player.hasDoubleQuarry) {
-    const otherColors = GEM_COLORS.filter(c => c !== color && state.bank[c] > 0);
-    if (otherColors.length > 0) {
-      const bonusColor = otherColors[Math.floor(Math.random() * otherColors.length)];
-      state.bank[bonusColor] -= 1;
-      player.tokens[bonusColor] += 1;
-      actionDesc += ` + 1 ${bonusColor} (Double Quarry bonus)`;
-    }
-  }
-
-  // Alchemical Duplication bonus
-  if (player.hasAlchemicalDuplication) {
-    const pairColors = GEM_COLORS.filter(c => c !== color && state.bank[c] >= 2);
-    if (pairColors.length > 0) {
-      const dupColor = pairColors[0];
-      state.bank[dupColor] -= 1;
-      player.tokens[dupColor] += 1;
-      actionDesc += ` + 1 ${dupColor} (Alchemical Duplication)`;
-    }
-  }
+  const actionDesc = `Took 2 ${colorName} gems`;
 
   logMove(state, player, 'take_pair', actionDesc);
 
@@ -668,7 +657,6 @@ export function executeReserveCard(state, playerIndex, options) {
 
   player.cardsReserved.push(reservedCardId);
   player.totalReservedCount = (player.totalReservedCount || 0) + 1;
-  player.consecutivePairs = 0;
 
   // Sabotage check for feat tracking
   const opponents = state.players.filter(p => p.id !== player.id);
@@ -798,13 +786,23 @@ export function executePurchaseCard(state, playerIndex, cardId, options = {}) {
   player.bonuses[card.gemBonus] += 1;
   player.prestigePoints += card.prestigePoints;
   player.stats.cardsBought += 1;
-  player.consecutivePairs = 0;
 
   const desc = options.sabotage
     ? `⚔️ SABOTAGED ${options.sabotageTargetName || 'Opponent'}! Snatched Tier ${card.tier} card (${card.gemBonus} bonus, +${card.prestigePoints} pts)`
     : `Purchased Tier ${card.tier} card (${card.gemBonus} bonus, +${card.prestigePoints} pts)`;
 
   logMove(state, player, 'purchase', desc);
+
+  // Guildmaster's Sovereignty bonus
+  if (player.hasGuildmasterSovereignty || (player.powersClaimed && player.powersClaimed.includes('guildmaster_sovereignty'))) {
+    const bonusGem = card.gemBonus;
+    if (state.bank[bonusGem] > 0) {
+      state.bank[bonusGem] -= 1;
+      player.tokens[bonusGem] += 1;
+      player.stats.tokensGained += 1;
+      logMove(state, player, 'power_effect', `👑 Guildmaster's Sovereignty: Received 1 free ${bonusGem} token from the bank!`);
+    }
+  }
 
   // Super Powers Passives & Feat Tracking
   if (player.synergyDiscounts > 0) {
@@ -820,9 +818,7 @@ export function executePurchaseCard(state, playerIndex, cardId, options = {}) {
     player.reservedPurchasedCount = (player.reservedPurchasedCount || 0) + 1;
   }
   if (payment.gold === 0) {
-    player.consecutiveNoGoldPurchases = (player.consecutiveNoGoldPurchases || 0) + 1;
-  } else {
-    player.consecutiveNoGoldPurchases = 0;
+    player.totalNoGoldPurchases = (player.totalNoGoldPurchases || 0) + 1;
   }
   if (Object.values(payment.regular || {}).some(v => v >= 4)) {
     player.hasSpentFourSameColorSingleBuy = true;
@@ -1191,7 +1187,6 @@ export function executePassTurn(state, playerIndex) {
   if (!validation.valid) throw new Error(validation.error);
 
   const player = state.players[playerIndex];
-  player.consecutivePairs = 0;
   logMove(state, player, 'pass', `${player.name} passed turn (no legal actions available).`);
   advanceTurn(state);
   return state;
@@ -1439,11 +1434,8 @@ export function applySuperPowerPassive(state, playerIndex, powerId) {
     case 'endless_vault':
       player.vaultLimit = 14;
       break;
-    case 'double_quarry':
-      player.hasDoubleQuarry = true;
-      break;
-    case 'alchemical_duplication':
-      player.hasAlchemicalDuplication = true;
+    case 'silk_road_caravan':
+      player.hasSilkRoadCaravan = true;
       break;
     case 'shadow_siphon':
       player.hasShadowSiphon = true;
@@ -1456,9 +1448,6 @@ export function applySuperPowerPassive(state, playerIndex, powerId) {
       break;
     case 'noble_envoy':
       player.hasNobleEnvoy = true;
-      break;
-    case 'diamond_cartel':
-      player.hasDiamondCartel = true;
       break;
     case 'vault_lockdown': {
       const opponents = state.players.filter(p => p.id !== player.id);
@@ -1481,22 +1470,15 @@ export function applySuperPowerPassive(state, playerIndex, powerId) {
       }
       break;
     }
-    case 'inverted_economy':
-      player.hasInvertedEconomy = true;
-      break;
     case 'black_market_master':
       player.hasBlackMarket = true;
       break;
-    case 'dynastic_hegemony': {
-      player.targetPointsOverride = 12;
-      const isPureObjectiveMode = ['onyx_syndicate', 'color_supremacy', 'noble_court', 'rainbow_guild'].includes(state.gameMode);
-      if (!isPureObjectiveMode && player.prestigePoints >= 12 && state.status === 'in_progress') {
-        state.status = 'final_round';
-        state.finalRoundTriggeredBy = player.id;
-        logMove(state, player, 'final_round_triggered', '🏆 Dynastic Hegemony: 12 prestige points achieved! Final round initiated.');
-      }
+    case 'celestial_alignment':
+      player.hasCelestialAlignment = true;
       break;
-    }
+    case 'guildmaster_sovereignty':
+      player.hasGuildmasterSovereignty = true;
+      break;
   }
 }
 
@@ -1523,36 +1505,6 @@ export function executeSuperPowerInstant(state, playerIndex, powerId) {
         gained += 1;
       }
       logMove(state, player, 'power_effect', `💰 Merchant's Resurgence: Gained ${gained} tokens from bank!`);
-      break;
-    }
-    case 'bribed_courier': {
-      let reservedCardId = null;
-      if (state.decks[1].length > 0) {
-        reservedCardId = state.decks[1].pop();
-        player.cardsReserved.push(reservedCardId);
-        player.totalReservedCount = (player.totalReservedCount || 0) + 1;
-      }
-      const goldAwarded = Math.min(state.bank.gold, 2);
-      if (goldAwarded > 0) {
-        state.bank.gold -= goldAwarded;
-        player.tokens.gold += goldAwarded;
-      }
-      logMove(state, player, 'power_effect', `📬 Bribed Courier: Reserved top Tier 1 card and gained ${goldAwarded} Gold Jokers!`);
-      break;
-    }
-    case 'gem_embargo_boon': {
-      const sortedColors = [...GEM_COLORS].sort((a, b) => (player.tokens[b] || 0) - (player.tokens[a] || 0));
-      const blockedGem = sortedColors[0] || 'diamond';
-      const opp = leadingOpp;
-      if (opp) {
-        opp.activeCurses = opp.activeCurses || {};
-        opp.activeCurses.gem_embargo = {
-          color: blockedGem,
-          blockedColor: blockedGem,
-          roundsLeft: 3
-        };
-        logMove(state, player, 'power_effect', `⛔ Market Interdict: ${opp.name} is barred from taking ${blockedGem} tokens for 3 rounds!`);
-      }
       break;
     }
     case 'guild_embargo': {
@@ -1728,24 +1680,6 @@ export function executeSuperPowerInstant(state, playerIndex, powerId) {
           opp.tokens[c] = 0;
         }
         logMove(state, player, 'power_effect', `💀 Bankrupting Curse: Seized all tokens from ${opp.name} back to the bank!`);
-      }
-      break;
-    }
-    case 'emperors_regalia': {
-      while (state.nobles.length > 0) {
-        const nId = state.nobles.shift();
-        const noble = NOBLES_BY_ID[nId];
-        player.noblesAcquired.push(nId);
-        player.prestigePoints += noble.prestigePoints;
-        player.stats.noblesClaimed += 1;
-      }
-      logMove(state, player, 'power_effect', '⚜️ Emperor\'s Regalia recruited ALL remaining Nobles from the board!');
-      if (state.gameMode === 'noble_court' && player.noblesAcquired.length >= 3 && state.status === 'in_progress') {
-        state.status = 'final_round';
-        state.finalRoundTriggeredBy = player.id;
-      } else if (!isPureObjectiveMode && player.prestigePoints >= (player.targetPointsOverride || state.targetPoints || 15) && state.status === 'in_progress') {
-        state.status = 'final_round';
-        state.finalRoundTriggeredBy = player.id;
       }
       break;
     }

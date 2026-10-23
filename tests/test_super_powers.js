@@ -38,7 +38,7 @@ function assert(condition, message) {
 }
 
 print('===============================================================');
-print('   SPLENDOR SUPER POWERS TEST SUITE (30 POWERS / 7 MATCH DRAW)');
+print('   SPLENDOR SUPER POWERS TEST SUITE (24 POWERS / 7 MATCH DRAW)');
 print('===============================================================\n');
 
 // -----------------------------------------------------------------
@@ -46,14 +46,14 @@ print('===============================================================\n');
 // -----------------------------------------------------------------
 print('TEST 1: Verifying Super Powers Catalog Integrity & Balanced 7-Power Draw...');
 const powerKeys = Object.keys(POWERS_DATA);
-assert(powerKeys.length === 30, `Expected exactly 30 super powers in catalog, found ${powerKeys.length}`);
+assert(powerKeys.length === 24, `Expected exactly 24 super powers in catalog, found ${powerKeys.length}`);
 
 const commonList = Object.values(POWERS_DATA).filter(p => p.tier === 'common');
 const rareList = Object.values(POWERS_DATA).filter(p => p.tier === 'rare');
 const mythicList = Object.values(POWERS_DATA).filter(p => p.tier === 'mythic');
 
-assert(commonList.length === 12, `Expected 12 Common powers, found ${commonList.length}`);
-assert(rareList.length === 10, `Expected 10 Rare powers, found ${rareList.length}`);
+assert(commonList.length === 8, `Expected 8 Common powers, found ${commonList.length}`);
+assert(rareList.length === 8, `Expected 8 Rare powers, found ${rareList.length}`);
 assert(mythicList.length === 8, `Expected 8 Mythic powers, found ${mythicList.length}`);
 
 for (const power of Object.values(POWERS_DATA)) {
@@ -81,7 +81,7 @@ for (let i = 0; i < 20; i++) {
   const uniqueIds = new Set(ids);
   assert(uniqueIds.size === 7, 'Drawn powers must contain 7 distinct powers');
 }
-print('  ✓ All 30 powers verified & balanced 3-Common / 2-Rare / 2-Mythic draw confirmed.\n');
+print('  ✓ All 24 powers verified & balanced 3-Common / 2-Rare / 2-Mythic draw confirmed.\n');
 
 // -----------------------------------------------------------------
 // TEST 2: FIRST 5 ROUNDS SEALED & ROUND 6 UNLOCK
@@ -128,9 +128,9 @@ assert(sealState.players[0].goldPerReserve === 2, 'Midas Crucible passive effect
 print('  ✓ Sealed arcane state in Rounds 1-5 and automatic shatter at Round 6 verified.\n');
 
 // -----------------------------------------------------------------
-// TEST 3: ALL 12 COMMON BOONS (FEAT & EFFECT TESTS)
+// TEST 3: ALL 8 COMMON BOONS (FEAT & EFFECT TESTS)
 // -----------------------------------------------------------------
-print('TEST 3: Verifying All 12 Common Boons (Feat Checks + Game Effects)...');
+print('TEST 3: Verifying All 8 Common Boons (Feat Checks + Game Effects)...');
 
 // 3.1 Midas Crucible
 {
@@ -165,21 +165,7 @@ print('TEST 3: Verifying All 12 Common Boons (Feat Checks + Game Effects)...');
   assert(st.players[0].vaultLimit === 14, 'vault limit is 14');
 }
 
-// 3.3 Double Quarry
-{
-  const p = POWERS_DATA.double_quarry;
-  const st = createGameState({ playerNames: ['P1', 'P2'], gameMode: 'super_powers' });
-  st.powersRevealed = true;
-  st.players[0].consecutivePairs = 2;
-  assert(p.checkFeat(st, st.players[0]) === false, 'double_quarry false at 2 consecutive pairs');
-  st.players[0].consecutivePairs = 3;
-  assert(p.checkFeat(st, st.players[0]) === true, 'double_quarry true at 3 consecutive pairs');
-
-  applySuperPowerPassive(st, 0, 'double_quarry');
-  assert(st.players[0].hasDoubleQuarry === true, 'hasDoubleQuarry is active');
-}
-
-// 3.4 Prismatic Harmony
+// 3.3 Prismatic Harmony
 {
   const p = POWERS_DATA.prismatic_harmony;
   const st = createGameState({ playerNames: ['P1', 'P2'], gameMode: 'super_powers' });
@@ -193,7 +179,7 @@ print('TEST 3: Verifying All 12 Common Boons (Feat Checks + Game Effects)...');
   assert(st.players[0].hasPrismaticHarmony === true, 'hasPrismaticHarmony active');
 }
 
-// 3.5 Noble Envoy
+// 3.4 Noble Envoy
 {
   const p = POWERS_DATA.noble_envoy;
   const st = createGameState({ playerNames: ['P1', 'P2'], gameMode: 'super_powers' });
@@ -207,21 +193,7 @@ print('TEST 3: Verifying All 12 Common Boons (Feat Checks + Game Effects)...');
   assert(st.players[0].hasNobleEnvoy === true, 'hasNobleEnvoy active');
 }
 
-// 3.6 Diamond Cartel
-{
-  const p = POWERS_DATA.diamond_cartel;
-  const st = createGameState({ playerNames: ['P1', 'P2'], gameMode: 'super_powers' });
-  st.powersRevealed = true;
-  st.players[0].bonuses.diamond = 4;
-  assert(p.checkFeat(st, st.players[0]) === false, 'diamond_cartel false with 4 diamonds');
-  st.players[0].bonuses.diamond = 5;
-  assert(p.checkFeat(st, st.players[0]) === true, 'diamond_cartel true with 5 diamonds');
-
-  applySuperPowerPassive(st, 0, 'diamond_cartel');
-  assert(st.players[0].hasDiamondCartel === true, 'hasDiamondCartel active');
-}
-
-// 3.7 Smuggler's Warehouse
+// 3.5 Smuggler's Warehouse
 {
   const p = POWERS_DATA.smugglers_warehouse;
   const st = createGameState({ playerNames: ['P1', 'P2'], gameMode: 'super_powers' });
@@ -238,21 +210,7 @@ print('TEST 3: Verifying All 12 Common Boons (Feat Checks + Game Effects)...');
   assert(st.players[0].reserveLimit === 4, 'reserveLimit is 4');
 }
 
-// 3.8 Alchemical Duplication
-{
-  const p = POWERS_DATA.alchemical_duplication;
-  const st = createGameState({ playerNames: ['P1', 'P2'], gameMode: 'super_powers' });
-  st.powersRevealed = true;
-  st.players[0].consecutivePairs = 1;
-  assert(p.checkFeat(st, st.players[0]) === false, 'alchemical_duplication false at 1 consecutive pair');
-  st.players[0].consecutivePairs = 2;
-  assert(p.checkFeat(st, st.players[0]) === true, 'alchemical_duplication true at 2 consecutive pairs');
-
-  applySuperPowerPassive(st, 0, 'alchemical_duplication');
-  assert(st.players[0].hasAlchemicalDuplication === true, 'hasAlchemicalDuplication active');
-}
-
-// 3.9 Shadow Siphon
+// 3.6 Shadow Siphon
 {
   const p = POWERS_DATA.shadow_siphon;
   const st = createGameState({ playerNames: ['P1', 'P2'], gameMode: 'super_powers' });
@@ -267,36 +225,7 @@ print('TEST 3: Verifying All 12 Common Boons (Feat Checks + Game Effects)...');
   assert(st.players[0].hasShadowSiphon === true, 'hasShadowSiphon active');
 }
 
-// 3.10 Bribed Courier
-{
-  const p = POWERS_DATA.bribed_courier;
-  const st = createGameState({ playerNames: ['P1', 'P2'], gameMode: 'super_powers' });
-  st.powersRevealed = true;
-  st.players[0].totalReservedCount = 1;
-  assert(p.checkFeat(st, st.players[0]) === false, 'bribed_courier false with 1 reserved total');
-  st.players[0].totalReservedCount = 2;
-  assert(p.checkFeat(st, st.players[0]) === true, 'bribed_courier true with 2 reserved total');
-
-  executeSuperPowerInstant(st, 0, 'bribed_courier');
-  assert(st.players[0].cardsReserved.length >= 1, 'Reserved top Tier 1 card');
-  assert((st.players[0].tokens.gold || 0) >= 2, 'Gained 2 Gold Jokers');
-}
-
-// 3.11 Market Interdict (gem_embargo_boon)
-{
-  const p = POWERS_DATA.gem_embargo_boon;
-  const st = createGameState({ playerNames: ['P1', 'P2'], gameMode: 'super_powers' });
-  st.powersRevealed = true;
-  st.players[0].tokens = { diamond: 3, sapphire: 0, emerald: 0, ruby: 0, onyx: 0, gold: 0 };
-  assert(p.checkFeat(st, st.players[0]) === false, 'gem_embargo_boon false with 3 diamonds');
-  st.players[0].tokens.diamond = 4;
-  assert(p.checkFeat(st, st.players[0]) === true, 'gem_embargo_boon true with 4 diamonds');
-
-  executeSuperPowerInstant(st, 0, 'gem_embargo_boon');
-  assert(st.players[1].activeCurses?.gem_embargo?.roundsLeft === 3, 'Opponent cursed with gem_embargo for 3 rounds');
-}
-
-// 3.12 Merchant's Resurgence
+// 3.7 Merchant's Resurgence
 {
   const p = POWERS_DATA.merchants_resurgence;
   const st = createGameState({ playerNames: ['P1', 'P2'], gameMode: 'super_powers' });
@@ -309,12 +238,32 @@ print('TEST 3: Verifying All 12 Common Boons (Feat Checks + Game Effects)...');
   executeSuperPowerInstant(st, 0, 'merchants_resurgence');
   assert(countTokens(st.players[0].tokens) === 3, 'Gained 3 tokens from bank');
 }
-print('  ✓ All 12 Common Boons verified with 100% feat & effect fidelity.\n');
+
+// 3.8 Silk Road Caravan
+{
+  const p = POWERS_DATA.silk_road_caravan;
+  const st = createGameState({ playerNames: ['P1', 'P2'], gameMode: 'super_powers' });
+  st.powersRevealed = true;
+  st.players[0].tokens = { diamond: 1, sapphire: 1, emerald: 1, ruby: 0, onyx: 0, gold: 0 };
+  assert(p.checkFeat(st, st.players[0]) === false, 'silk_road_caravan false with 3 colors');
+  st.players[0].tokens.ruby = 1;
+  assert(p.checkFeat(st, st.players[0]) === true, 'silk_road_caravan true with 4 colors');
+
+  applySuperPowerPassive(st, 0, 'silk_road_caravan');
+  assert(st.players[0].hasSilkRoadCaravan === true, 'hasSilkRoadCaravan active');
+
+  // Test effect: take 3 distinct gems where player held 0 -> gains +1 gold
+  st.players[0].tokens = { diamond: 0, sapphire: 0, emerald: 0, ruby: 0, onyx: 0, gold: 0 };
+  st.bank.gold = 5;
+  executeTakeDistinctTokens(st, 0, ['diamond', 'sapphire', 'emerald']);
+  assert(st.players[0].tokens.gold === 1, 'Silk Road Caravan awarded 1 Gold Joker on fresh gem take');
+}
+print('  ✓ All 8 Common Boons verified with 100% feat & effect fidelity.\n');
 
 // -----------------------------------------------------------------
-// TEST 4: ALL 10 RARE ARTIFACTS (FEAT & EFFECT TESTS)
+// TEST 4: ALL 8 RARE ARTIFACTS (FEAT & EFFECT TESTS)
 // -----------------------------------------------------------------
-print('TEST 4: Verifying All 10 Rare Artifacts (Feat Checks + Game Effects)...');
+print('TEST 4: Verifying All 8 Rare Artifacts (Feat Checks + Game Effects)...');
 
 // 4.1 Guild Embargo
 {
@@ -394,38 +343,7 @@ print('TEST 4: Verifying All 10 Rare Artifacts (Feat Checks + Game Effects)...')
   assert(st.players[1].activeCurses?.imperial_tithe?.chargesLeft === 3, 'Imperial tithe has 3 charges');
 }
 
-// 4.6 Inverted Economy
-{
-  const p = POWERS_DATA.inverted_economy;
-  const st = createGameState({ playerNames: ['P1', 'P2'], gameMode: 'super_powers' });
-  st.powersRevealed = true;
-  const t2 = Object.keys(CARDS_BY_ID).filter(id => CARDS_BY_ID[id].tier === 2);
-  st.players[0].cardsPurchased = [t2[0], t2[1], t2[2]];
-  assert(p.checkFeat(st, st.players[0]) === false, 'inverted_economy false with 3 T2');
-  st.players[0].cardsPurchased.push(t2[3]);
-  assert(p.checkFeat(st, st.players[0]) === true, 'inverted_economy true with 4 T2');
-
-  applySuperPowerPassive(st, 0, 'inverted_economy');
-  assert(st.players[0].hasInvertedEconomy === true, 'hasInvertedEconomy active');
-}
-
-// 4.7 Aristocrat's Heist
-{
-  const p = POWERS_DATA.aristocrats_heist;
-  const st = createGameState({ playerNames: ['P1', 'P2'], gameMode: 'super_powers' });
-  st.powersRevealed = true;
-  st.players[0].bonuses = { diamond: 3, sapphire: 3, emerald: 3, ruby: 2, onyx: 0 };
-  assert(p.checkFeat(st, st.players[0]) === false, 'aristocrats_heist false with 11 bonuses');
-  st.players[0].bonuses.ruby = 3;
-  assert(p.checkFeat(st, st.players[0]) === true, 'aristocrats_heist true with 12 bonuses');
-
-  const initialNobles = st.nobles.length;
-  executeSuperPowerInstant(st, 0, 'aristocrats_heist');
-  assert(st.nobles.length === initialNobles - 1, 'One noble claimed from table');
-  assert(st.players[0].noblesAcquired.length === 1, 'Player acquired noble');
-}
-
-// 4.8 Black Market Master
+// 4.6 Black Market Master
 {
   const p = POWERS_DATA.black_market_master;
   const st = createGameState({ playerNames: ['P1', 'P2'], gameMode: 'super_powers' });
@@ -439,7 +357,7 @@ print('TEST 4: Verifying All 10 Rare Artifacts (Feat Checks + Game Effects)...')
   assert(st.players[0].hasBlackMarket === true, 'hasBlackMarket active');
 }
 
-// 4.9 Espionage Heist
+// 4.7 Espionage Heist
 {
   const p = POWERS_DATA.espionage_heist;
   const st = createGameState({ playerNames: ['P1', 'P2'], gameMode: 'super_powers' });
@@ -456,7 +374,7 @@ print('TEST 4: Verifying All 10 Rare Artifacts (Feat Checks + Game Effects)...')
   assert(st.players[0].cardsReserved.includes('stolen_card_1'), 'Player stole opponent reserved card');
 }
 
-// 4.10 Market Freeze
+// 4.8 Market Freeze
 {
   const p = POWERS_DATA.market_freeze;
   const st = createGameState({ playerNames: ['P1', 'P2'], gameMode: 'super_powers' });
@@ -471,7 +389,7 @@ print('TEST 4: Verifying All 10 Rare Artifacts (Feat Checks + Game Effects)...')
   const tableCard = st.tableCards[1][0];
   assert(canPlayerBuyCard(st, 0, tableCard) === false, 'Table card cannot be purchased during market freeze');
 }
-print('  ✓ All 10 Rare Artifacts verified with 100% feat & effect fidelity.\n');
+print('  ✓ All 8 Rare Artifacts verified with 100% feat & effect fidelity.\n');
 
 // -----------------------------------------------------------------
 // TEST 5: ALL 8 MYTHIC WONDERS (FEAT & EFFECT TESTS)
@@ -483,10 +401,10 @@ print('TEST 5: Verifying All 8 Mythic Wonders (Feat Checks + Game Effects)...');
   const p = POWERS_DATA.chronos_hourglass;
   const st = createGameState({ playerNames: ['P1', 'P2'], gameMode: 'super_powers' });
   st.powersRevealed = true;
-  st.players[0].consecutiveNoGoldPurchases = 1;
-  assert(p.checkFeat(st, st.players[0]) === false, 'chronos_hourglass false at 1 buy');
-  st.players[0].consecutiveNoGoldPurchases = 2;
-  assert(p.checkFeat(st, st.players[0]) === true, 'chronos_hourglass true at 2 consecutive pure buys');
+  st.players[0].totalNoGoldPurchases = 3;
+  assert(p.checkFeat(st, st.players[0]) === false, 'chronos_hourglass false at 3 pure purchases');
+  st.players[0].totalNoGoldPurchases = 4;
+  assert(p.checkFeat(st, st.players[0]) === true, 'chronos_hourglass true at 4 pure purchases');
 
   executeSuperPowerInstant(st, 0, 'chronos_hourglass');
   assert(st.extraTurnsPlayerId === 'p_1', 'extraTurnsPlayerId set');
@@ -557,18 +475,22 @@ print('TEST 5: Verifying All 8 Mythic Wonders (Feat Checks + Game Effects)...');
   assert(st.players[0].cardsPurchased.length === 15, 'Free Tier 3 card added');
 }
 
-// 5.6 Dynastic Hegemony
+// 5.6 Celestial Alignment
 {
-  const p = POWERS_DATA.dynastic_hegemony;
+  const p = POWERS_DATA.celestial_alignment;
   const st = createGameState({ playerNames: ['P1', 'P2'], gameMode: 'super_powers' });
   st.powersRevealed = true;
-  st.players[0].bonuses = { diamond: 3, sapphire: 3, emerald: 3, ruby: 3, onyx: 2 };
-  assert(p.checkFeat(st, st.players[0]) === false, 'dynastic_hegemony false with 2 onyx');
-  st.players[0].bonuses.onyx = 3;
-  assert(p.checkFeat(st, st.players[0]) === true, 'dynastic_hegemony true with 3 of each color');
+  st.players[0].bonuses = { diamond: 3, sapphire: 3, emerald: 2, ruby: 0, onyx: 0 };
+  assert(p.checkFeat(st, st.players[0]) === false, 'celestial_alignment false with 2 colors at 3+');
+  st.players[0].bonuses.emerald = 3;
+  assert(p.checkFeat(st, st.players[0]) === true, 'celestial_alignment true with 3 colors at 3+');
 
-  applySuperPowerPassive(st, 0, 'dynastic_hegemony');
-  assert(st.players[0].targetPointsOverride === 12, 'Winning threshold reduced to 12 points');
+  applySuperPowerPassive(st, 0, 'celestial_alignment');
+  assert(st.players[0].hasCelestialAlignment === true, 'hasCelestialAlignment active');
+  // Test wildcard discount effect
+  const card = { id: 'test_card', tier: 2, cost: { ruby: 5 }, gemBonus: 'ruby', prestigePoints: 2 };
+  st.players[0].tokens.ruby = 2; // Needs 5, has 2 tokens + 3 colors at 3+ bonus = 3 wild discounts = total 5!
+  assert(canAffordCard(st.players[0], card) === true, 'Celestial Alignment grants 3 wildcard discounts');
 }
 
 // 5.7 Bankrupting Curse
@@ -586,21 +508,26 @@ print('TEST 5: Verifying All 8 Mythic Wonders (Feat Checks + Game Effects)...');
   assert(countTokens(st.players[1].tokens) === 0, 'Opponent completely stripped of tokens');
 }
 
-// 5.8 Emperor's Regalia
+// 5.8 Guildmaster's Sovereignty
 {
-  const p = POWERS_DATA.emperors_regalia;
+  const p = POWERS_DATA.guildmaster_sovereignty;
   const st = createGameState({ playerNames: ['P1', 'P2'], gameMode: 'super_powers' });
   st.powersRevealed = true;
-  st.players[0].prestigePoints = 13;
-  st.players[0].noblesAcquired = [];
-  assert(p.checkFeat(st, st.players[0]) === false, 'emperors_regalia false at 13 pts');
-  st.players[0].prestigePoints = 14;
-  assert(p.checkFeat(st, st.players[0]) === true, 'emperors_regalia true at 14 pts with 0 nobles');
+  st.players[0].cardsPurchased = new Array(9).fill('dummy');
+  assert(p.checkFeat(st, st.players[0]) === false, 'guildmaster_sovereignty false at 9 cards');
+  st.players[0].cardsPurchased.push('dummy10');
+  assert(p.checkFeat(st, st.players[0]) === true, 'guildmaster_sovereignty true at 10 cards');
 
-  const totalNoblesOnBoard = st.nobles.length;
-  executeSuperPowerInstant(st, 0, 'emperors_regalia');
-  assert(st.nobles.length === 0, 'All table nobles recruited');
-  assert(st.players[0].noblesAcquired.length === totalNoblesOnBoard, 'Player claimed all nobles');
+  applySuperPowerPassive(st, 0, 'guildmaster_sovereignty');
+  assert(st.players[0].hasGuildmasterSovereignty === true, 'hasGuildmasterSovereignty active');
+
+  // Test buying a card gives 1 free token of that gem bonus
+  st.tableCards[1][0] = 't1_o_1'; // Onyx bonus card
+  st.players[0].tokens.onyx = 0;
+  st.bank.onyx = 4;
+  st.players[0].tokens.gold = 5;
+  executePurchaseCard(st, 0, 't1_o_1');
+  assert(st.players[0].tokens.onyx === 1, 'Guildmaster Sovereignty awarded 1 free onyx token');
 }
 print('  ✓ All 8 Mythic Wonders verified with 100% feat & effect fidelity.\n');
 
