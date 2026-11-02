@@ -16,8 +16,11 @@
   <!-- Three.js (Optional 3D Enhancement - gracefully falls back to 2D Canvas if offline) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
 
+  <!-- PeerJS for Serverless WebRTC Multiplayer on GitHub Pages -->
+  <script src="js/peerjs.min.js"></script>
+
   <!-- ES Module Application Entry -->
-  <script type="module" src="js/app.js?v=7.0"></script>
+  <script type="module" src="js/app.js?v=8.0"></script>
 
 
 </head>
@@ -224,6 +227,30 @@
             <label style="font-size:13px; color:#e2e8f0; font-weight:600;">Room Code:</label>
             <input type="text" id="lobby-room-code-input" class="modal-input" placeholder="e.g. ABC123" maxlength="8" style="text-transform:uppercase; font-family:monospace; font-weight:bold; width:130px; text-align:center; letter-spacing:2px;" />
           </div>
+
+          <!-- Online Network Provider Badge & Settings -->
+          <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.08); border-radius:6px; padding:6px 10px;">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span id="network-provider-status-dot" style="width:8px; height:8px; border-radius:50%; background:#10b981; display:inline-block;"></span>
+              <span id="network-provider-label" style="font-size:11px; color:#94a3b8;">WebRTC P2P (Serverless GitHub Pages)</span>
+            </div>
+            <button type="button" id="btn-toggle-network-settings" style="background:none; border:none; color:#fbbf24; font-size:11px; cursor:pointer; text-decoration:underline;">Settings</button>
+          </div>
+
+          <!-- Advanced Network Settings Panel (Collapsible) -->
+          <div id="lobby-network-settings-panel" style="display:none; flex-direction:column; gap:6px; padding:8px; background:rgba(15,23,42,0.6); border:1px solid rgba(251,191,36,0.2); border-radius:6px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <label style="font-size:11px; color:#e2e8f0;">Protocol:</label>
+              <select id="lobby-network-transport-select" class="secondary-btn" style="background:#1e1b2b; color:#fff; font-size:11px; padding:3px 6px;">
+                <option value="p2p" selected>🌐 WebRTC Peer-to-Peer (Serverless)</option>
+                <option value="websocket">🔌 WebSocket Server (server.py / Relay)</option>
+              </select>
+            </div>
+            <div id="lobby-custom-server-row" style="display:none; flex-direction:column; gap:4px;">
+              <label style="font-size:10px; color:#94a3b8;">Custom WebSocket URL:</label>
+              <input type="text" id="lobby-custom-server-url" class="modal-input" placeholder="ws://localhost:8000/ws" style="font-size:11px; padding:4px 6px;" />
+            </div>
+          </div>
         </div>
 
         <!-- User / Merchant Name Input Section -->
@@ -333,6 +360,11 @@
       <p class="modal-subtitle">Share this invite link with your friends to play together!</p>
 
       <div class="modal-body" style="display:flex; flex-direction:column; gap:14px;">
+        <!-- Network Connection Status Pill -->
+        <div id="online-network-badge" style="font-size:11px; text-align:center; color:#34d399; background:rgba(52,211,153,0.1); border:1px solid rgba(52,211,153,0.25); border-radius:6px; padding:6px 10px; display:flex; align-items:center; justify-content:center; gap:6px;">
+          <span>🟢</span> <span id="online-network-status-text">WebRTC P2P Direct Connect Active</span>
+        </div>
+
         <!-- Share Link Box -->
         <div style="background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:8px 10px; display:flex; align-items:center; gap:8px;">
           <input type="text" id="online-share-link" readonly style="background:transparent; border:none; color:#fbbf24; font-size:12px; font-family:monospace; flex:1; outline:none; text-overflow:ellipsis;" />

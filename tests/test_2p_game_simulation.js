@@ -17,6 +17,7 @@ import {
 } from '../js/engine.js';
 import { CARDS_BY_ID, NOBLES_BY_ID, ALL_TOKENS } from '../js/cards-data.js';
 import { computeAiMove, computeAiDiscard, computeAiNobleChoice } from '../js/ai.js';
+const print = typeof globalThis.print === 'function' ? globalThis.print : console.log;
 
 function assert(condition, message) {
   if (!condition) {

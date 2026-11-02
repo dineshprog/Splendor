@@ -41,7 +41,7 @@ A high-fidelity, web-native digital adaptation of the award-winning board game *
 5. **Multiplayer & Game Modes**:
    - **Solo vs AI**: 1 human vs 1–3 configurable AI bots.
    - **Pass-and-Play**: 2–4 players taking turns on a single shared screen.
-   - **Online Multiplayer**: Real-time room synchronization via built-in Python WebSocket server.
+   - **Online Multiplayer**: Real-time room synchronization supporting both serverless WebRTC Peer-to-Peer (out-of-the-box on GitHub Pages, zero backend required) and local Python WebSocket server.
    - **Configurable Turn Timers**: Casual (no timer), Blitz (30s), Standard (60s), or Classical (120s).
    - **Post-Game Analytics & Podium**: Line graph and bar comparison of points progression and card bonuses.
 
@@ -49,7 +49,15 @@ A high-fidelity, web-native digital adaptation of the award-winning board game *
 
 ## 🚀 How to Run
 
-### Option 1: Start the Local Server (Recommended for Multiplayer & Optimal Asset Caching)
+### Option 1: GitHub Pages & Static Hosting (Serverless WebRTC Multiplayer)
+
+When hosted on **GitHub Pages** (or any static host), online multiplayer works 100% out of the box via **WebRTC Peer-to-Peer** (powered by PeerJS).
+- Simply open the site on GitHub Pages (`https://<username>.github.io/<repo>/`).
+- Click **Online Room (Share Link)** > **Create Room**.
+- Share the generated invite link (`?room=CODE`) with your friends.
+- No backend deployment or server setup required!
+
+### Option 2: Start the Local Server (WebSocket Mode)
 
 In your terminal, navigate to the project directory and run:
 
@@ -63,9 +71,9 @@ Then open your browser and navigate to:
 http://localhost:8000
 ```
 
-### Option 2: Direct Browser Launch
+### Option 3: Direct Browser Launch
 
-Double-click or open [`index.html`](file:///Users/rasika/Spendor/index.html) directly in any modern browser (Chrome, Safari, Firefox, Edge). All game logic, AI, 2D/3D graphics, and audio operate 100% client-side without external dependencies.
+Open [`index.html`](file:///c:/Users/ANT-PC/projects/Splendor/index.html) directly in any modern browser. All game logic, AI, 2D/3D graphics, procedurally synthesized audio, and WebRTC P2P multiplayer operate completely client-side without external dependencies.
 
 ---
 

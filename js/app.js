@@ -20,6 +20,7 @@ import { SplendorUI } from './ui.js?v=7.0';
 import { reshuffleCardArtworks } from './cards-data.js?v=7.0';
 import { GemTokenVisualizer } from './visual3d.js?v=7.0';
 import { soundEngine } from './audio.js?v=7.0';
+import { SplendorNetwork } from './network.js?v=7.0';
 
 class SplendorApp {
   constructor() {
@@ -39,6 +40,14 @@ class SplendorApp {
     this.onlinePlayers = [];
     this.onlinePlayerCount = 2;
     this.onlineTimerSec = 60;
+    this.onlineTransport = 'p2p';
+    this.customServerUrl = '';
+
+    this.network = new SplendorNetwork({
+      onMessage: (msg) => this.handleNetworkMessage(msg),
+      onStatus: (status, isErr) => this.handleNetworkStatus(status, isErr),
+      onError: (errMsg) => this.handleNetworkError(errMsg)
+    });
 
     this.init();
   }
@@ -350,6 +359,55 @@ class SplendorApp {
     tabJoin?.addEventListener('click', () => {
       this.onlineAction = 'join';
       updateOnlineTabs();
+    });
+
+    // Network Transport Configuration (P2P Serverless vs WebSocket)
+    const transportSelect = document.getElementById('lobby-network-transport-select');
+    const customServerRow = document.getElementById('lobby-custom-server-row');
+    const customServerInput = document.getElementById('lobby-custom-server-url');
+    const btnToggleNetworkSettings = document.getElementById('btn-toggle-network-settings');
+    const networkSettingsPanel = document.getElementById('lobby-network-settings-panel');
+    const networkLabel = document.getElementById('network-provider-label');
+    const networkDot = document.getElementById('network-provider-status-dot');
+
+    const storedTransport = localStorage.getItem('splendor_online_transport') || 'p2p';
+    this.onlineTransport = storedTransport;
+    if (transportSelect) transportSelect.value = storedTransport;
+
+    const storedCustomUrl = localStorage.getItem('splendor_custom_server_url') || '';
+    this.customServerUrl = storedCustomUrl;
+    if (customServerInput) customServerInput.value = storedCustomUrl;
+
+    const updateTransportUI = () => {
+      const isP2P = this.onlineTransport === 'p2p';
+      if (customServerRow) customServerRow.style.display = isP2P ? 'none' : 'flex';
+      if (networkLabel) {
+        networkLabel.innerText = isP2P
+          ? 'WebRTC P2P (Serverless GitHub Pages)'
+          : 'WebSocket Server (server.py / Relay)';
+      }
+      if (networkDot) {
+        networkDot.style.background = isP2P ? '#10b981' : '#38bdf8';
+      }
+    };
+    updateTransportUI();
+
+    transportSelect?.addEventListener('change', () => {
+      this.onlineTransport = transportSelect.value;
+      localStorage.setItem('splendor_online_transport', this.onlineTransport);
+      updateTransportUI();
+    });
+
+    customServerInput?.addEventListener('input', () => {
+      this.customServerUrl = customServerInput.value.trim();
+      localStorage.setItem('splendor_custom_server_url', this.customServerUrl);
+    });
+
+    btnToggleNetworkSettings?.addEventListener('click', () => {
+      if (networkSettingsPanel) {
+        const isHidden = networkSettingsPanel.style.display === 'none';
+        networkSettingsPanel.style.display = isHidden ? 'flex' : 'none';
+      }
     });
 
     const refreshNameFields = () => {
@@ -1051,8 +1109,8 @@ class SplendorApp {
     // Show Online Waiting Room Modal
     this.showOnlineWaitingModal(roomId);
 
-    // Connect WebSocket
-    this.connectWebSocket(roomId, playerName, playerCount, timerSec);
+    // Connect Network (P2P by default for GitHub Pages, or WebSocket)
+    this.connectNetwork({ roomId, playerName, playerCount, timerSec, targetPoints, gameMode, isHost });
   }
 
   showOnlineWaitingModal(roomId) {
@@ -1082,10 +1140,7 @@ class SplendorApp {
     const leaveBtn = document.getElementById('btn-leave-online-room');
     if (leaveBtn) {
       leaveBtn.onclick = () => {
-        if (this.ws) {
-          try { this.ws.close(); } catch (_) {}
-          this.ws = null;
-        }
+        this.network.close();
         window.history.pushState({}, '', window.location.pathname);
         modal.classList.add('hidden');
         document.getElementById('lobby-modal')?.classList.remove('hidden');
@@ -1158,51 +1213,63 @@ class SplendorApp {
     }
   }
 
-  connectWebSocket(roomId, playerName, playerCount, timerSec) {
+  connectNetwork({ roomId, playerName, playerCount, timerSec, targetPoints, gameMode, isHost }) {
     this.updateRoomBadge(`🌐 ROOM #${roomId}`);
-    const host = window.location.host || 'localhost:8000';
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const url = `${protocol}//${host}/ws?room=${roomId}`;
+    this.handleNetworkStatus(
+      this.onlineTransport === 'p2p'
+        ? 'Connecting to WebRTC P2P mesh...'
+        : 'Connecting to WebSocket server...',
+      false
+    );
 
-    try {
-      if (this.ws) {
-        try { this.ws.close(); } catch (_) {}
-      }
-      this.ws = new WebSocket(url);
+    this.network.connect({
+      roomId,
+      playerName: playerName || this.onlinePlayerName || 'Merchant',
+      playerCount: playerCount || this.onlinePlayerCount || 2,
+      timerSec: timerSec || this.onlineTimerSec || 60,
+      targetPoints: targetPoints || this.onlineTargetPoints || 15,
+      gameMode: gameMode || this.onlineGameMode || 'classic',
+      isHost,
+      transport: this.onlineTransport || 'p2p',
+      customServerUrl: this.customServerUrl || ''
+    });
+  }
 
-      this.ws.onopen = () => {
-        console.log('Connected to Splendor WebSocket Gateway');
-        this.ws.send(JSON.stringify({
-          type: 'join_room',
-          roomId,
-          playerName: playerName || this.onlinePlayerName || 'Merchant',
-          playerCount: playerCount || this.onlinePlayerCount || 2,
-          timerSec: timerSec || this.onlineTimerSec || 60,
-          targetPoints: this.onlineTargetPoints || 15,
-          gameMode: this.onlineGameMode || 'classic'
-        }));
-      };
+  connectWebSocket(roomId, playerName, playerCount, timerSec) {
+    this.onlineTransport = 'websocket';
+    this.connectNetwork({
+      roomId,
+      playerName,
+      playerCount,
+      timerSec,
+      targetPoints: this.onlineTargetPoints,
+      gameMode: this.onlineGameMode,
+      isHost: this.isOnlineHost
+    });
+  }
 
-      this.ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data);
-          this.handleNetworkMessage(msg);
-        } catch (e) {
-          console.error('Error handling WebSocket message:', e);
-        }
-      };
-
-      this.ws.onerror = (e) => {
-        console.warn('WebSocket connection error:', e);
-      };
-
-      this.ws.onclose = () => {
-        console.log('WebSocket closed');
-      };
-    } catch (e) {
-      console.error('Failed to initialize WebSocket:', e);
-      this.ui.showGameAlert('Connection Error', 'Could not connect to multiplayer server. Please ensure server.py is running.');
+  handleNetworkStatus(statusText, isError = false) {
+    const statusTextEl = document.getElementById('online-network-status-text');
+    if (statusTextEl) {
+      statusTextEl.innerText = statusText;
     }
+    const badgeContainer = document.getElementById('online-network-badge');
+    if (badgeContainer) {
+      if (isError) {
+        badgeContainer.style.color = '#f87171';
+        badgeContainer.style.borderColor = 'rgba(248, 113, 113, 0.3)';
+        badgeContainer.style.background = 'rgba(248, 113, 113, 0.1)';
+      } else {
+        badgeContainer.style.color = '#34d399';
+        badgeContainer.style.borderColor = 'rgba(52, 211, 153, 0.25)';
+        badgeContainer.style.background = 'rgba(52, 211, 153, 0.1)';
+      }
+    }
+  }
+
+  handleNetworkError(errMsg) {
+    this.handleNetworkStatus(errMsg, true);
+    this.ui.showToast(`⚠️ ${errMsg}`);
   }
 
   handleNetworkMessage(msg) {
@@ -1221,6 +1288,11 @@ class SplendorApp {
         this.updateRoomBadge(`🌐 ROOM #${this.roomId}`);
         this.onlinePlayers = msg.players || [];
         this.renderOnlinePlayersList();
+
+        const forceStartBtn = document.getElementById('btn-force-start-online');
+        if (forceStartBtn) {
+          forceStartBtn.style.display = this.isOnlineHost ? 'inline-block' : 'none';
+        }
 
         if (msg.state) {
           // Reconnecting to active game
@@ -1324,35 +1396,33 @@ class SplendorApp {
       gameMode: this.onlineGameMode || 'classic'
     });
 
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({
-        type: 'init_game_state',
-        roomId: this.roomId,
-        state: this.state
-      }));
-    }
+    this.network.send({
+      type: 'init_game_state',
+      roomId: this.roomId,
+      state: this.state
+    });
   }
 
   broadcastStateIfOnline(action = null) {
-    if (this.gameMode === 'online' && this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({
+    if (this.gameMode === 'online') {
+      this.network.send({
         type: 'update_state',
         roomId: this.roomId,
         state: this.state,
         action
-      }));
+      });
     }
   }
 
   sendEmoteNetwork(text) {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+    if (this.gameMode === 'online') {
       const activeName = this.state?.players?.find(p => p.id === this.onlinePlayerId)?.name || this.onlinePlayerName || 'Merchant';
-      this.ws.send(JSON.stringify({
+      this.network.send({
         type: 'send_emote',
         roomId: this.roomId,
         senderName: activeName,
         text
-      }));
+      });
     }
   }
 }

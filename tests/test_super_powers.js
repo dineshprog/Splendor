@@ -33,6 +33,7 @@ import {
 import { POWERS_DATA, drawMatchSuperPowers } from '../js/powers-data.js';
 import { CARDS_BY_ID, NOBLES_BY_ID, GEM_COLORS, ALL_TOKENS } from '../js/cards-data.js';
 import { computeAiMove, computeAiDiscard, computeAiDraftChoice } from '../js/ai.js';
+const print = typeof globalThis.print === 'function' ? globalThis.print : console.log;
 
 function assert(condition, message) {
   if (!condition) {
